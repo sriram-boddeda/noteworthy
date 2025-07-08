@@ -161,7 +161,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const notes = useMemo(() => allNotes.filter(n => !n.isTrashed), [allNotes]);
   const folders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
   const trashedNotes = useMemo(() => allNotes.filter(n => n.isTrashed), [allNotes]);
-  const trashedFolders = useMemo(() => allFolders.filter(f => f.isTrashed), [allFolders]);
+  const trashedFolders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
 
   const uniqueTags = useMemo(() => {
     const allTags = notes.flatMap(note => note.tags);
