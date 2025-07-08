@@ -32,6 +32,7 @@ import { marked } from 'marked';
 import { useToast } from '@/hooks/use-toast';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { formatDistanceToNow } from 'date-fns';
 
 
 const noteComponentMap = {
@@ -154,6 +155,11 @@ export default function NotePage() {
         crumbs.push({ href: `/note/${activeNote.id}`, label: activeNote.title.length > 25 ? `${activeNote.title.substring(0, 25)}...` : activeNote.title });
         return crumbs;
     }, [activeNote, folders]);
+
+    const lastModifiedText = useMemo(() => {
+        if (!activeNote) return '';
+        return formatDistanceToNow(new Date(activeNote.lastModified), { addSuffix: true });
+    }, [activeNote]);
 
     const onContentChange = useCallback((newContent: string) => {
         if (!activeNote) return;
@@ -332,19 +338,19 @@ export default function NotePage() {
     }
 
     return (
-        <div className="flex flex-col h-full">
-            <header className="sticky top-0 z-10 flex flex-col items-start gap-4 border-b bg-background p-3">
-                <Breadcrumbs items={breadcrumbs} />
-                <div className="flex w-full items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-baseline gap-2">
-                            <Input 
-                                value={activeNote.title} 
-                                onChange={onTitleChange}
-                                className="font-headline text-xl font-semibold border-none focus-visible:ring-1 focus-visible:ring-ring"
-                            />
-                        </div>
+        <div className="flex h-full flex-col">
+            <header className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background p-4">
+                <div className="flex w-full items-start justify-between gap-4">
+                    <div className="flex-1 space-y-1">
+                        <Breadcrumbs items={breadcrumbs} />
+                        <Input 
+                            value={activeNote.title} 
+                            onChange={onTitleChange}
+                            placeholder="Untitled Note"
+                            className="h-auto w-full border-none bg-transparent p-0 font-headline text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-3xl"
+                        />
                     </div>
+
                     <div className="flex items-center gap-2">
                         {activeNote.type !== 'calculator' && (
                             <>
@@ -360,6 +366,77 @@ export default function NotePage() {
                                 </form>
                             </>
                         )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                <Download className="mr-2 size-4" />
+                                Export
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuLabel>Export as</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => handleExport('pdf')}>PDF</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('docx')}>DOCX</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="default" size="sm">
+                            <Share className="mr-2 size-4" />
+                            Share
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {activeNote.tags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="cursor-default">
+                                <Tag className="size-3 mr-1.5" />
+                                {tag}
+                            </Badge>
+                        ))}
+                        <Popover open={isTagEditorOpen} onOpenChange={setTagEditorOpen}>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-7 rounded-full">
+                                    <Pencil className="size-3.5" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80">
+                                <form action={aiTagAction} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="tags-input">Edit Tags</Label>
+                                        <p className="text-sm text-muted-foreground">Separate tags with a comma.</p>
+                                        <Input 
+                                            id="tags-input"
+                                            defaultValue={activeNote.tags.join(', ')}
+                                            onChange={(e) => onUpdateTags(e.target.value.split(','))}
+                                        />
+                                    </div>
+                                    <input type="hidden" name="noteContent" value={activeNote.content} />
+                                    <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
+                                    <div className="flex flex-col space-y-2">
+                                        <AiSuggestButton />
+                                        {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-medium">Suggestions:</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {aiTagState.suggestedTags.map(tag => (
+                                                        <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
+                                                            <PlusCircle className="mr-2 size-3" />
+                                                            {tag}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </form>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                     <div className="flex items-center gap-4">
+                        <p className="text-muted-foreground">Last updated {lastModifiedText}</p>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive-outline" size="sm">
@@ -381,84 +458,18 @@ export default function NotePage() {
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-
-                        <Button variant="outline" size="sm">
-                        <Share className="mr-2 size-4" />
-                        Share
-                        </Button>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="default" size="sm">
-                            <Download className="mr-2 size-4" />
-                            Export
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuLabel>Export as</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => handleExport('pdf')}>PDF</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleExport('docx')}>DOCX</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
                     </div>
                 </div>
+
                  {audioUrl && (
-                    <div className="w-full">
+                    <div className="w-full pt-2">
                         <audio controls autoPlay src={audioUrl} className="w-full h-10" onEnded={() => setAudioUrl(null)}>
                             Your browser does not support the audio element.
                         </audio>
                     </div>
                 )}
             </header>
-            <div className="p-4 border-b">
-                 <div className="flex items-center gap-2">
-                    {activeNote.tags.map(tag => (
-                        <Badge key={tag} variant="secondary">
-                            <Tag className="size-3 mr-1" />
-                            {tag}
-                        </Badge>
-                    ))}
-                    <Popover open={isTagEditorOpen} onOpenChange={setTagEditorOpen}>
-                        <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-6">
-                                <Pencil className="size-3" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <form action={aiTagAction} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="tags-input">Edit Tags</Label>
-                                    <p className="text-sm text-muted-foreground">Separate tags with a comma.</p>
-                                    <Input 
-                                        id="tags-input"
-                                        defaultValue={activeNote.tags.join(', ')}
-                                        onChange={(e) => onUpdateTags(e.target.value.split(','))}
-                                    />
-                                </div>
-                                <input type="hidden" name="noteContent" value={activeNote.content} />
-                                <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
-                                <div className="flex flex-col space-y-2">
-                                    <AiSuggestButton />
-                                     {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">Suggestions:</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {aiTagState.suggestedTags.map(tag => (
-                                                    <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
-                                                        <PlusCircle className="mr-2 size-3" />
-                                                        {tag}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </form>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-            </div>
+            
             <main className="flex-1 overflow-auto p-4">
                 {activeNote.summary && (
                     <Alert className="relative mb-4 bg-primary/5 border-primary/20 [&>svg]:text-primary">
