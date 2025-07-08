@@ -34,7 +34,7 @@ import { useEffect, useCallback } from 'react';
 
 // Syntax Highlighting
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-import { lowlight } from 'lowlight';
+import { createLowlight } from 'lowlight';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
 import python from 'highlight.js/lib/languages/python';
@@ -52,12 +52,13 @@ import TextAlign from '@tiptap/extension-text-align';
 
 
 // Register languages with lowlight
-lowlight.registerLanguage('javascript', javascript);
-lowlight.registerLanguage('typescript', typescript);
-lowlight.registerLanguage('python', python);
-lowlight.registerLanguage('css', css);
-lowlight.registerLanguage('html', html);
-lowlight.registerLanguage('bash', bash);
+const lowlight = createLowlight();
+lowlight.register('javascript', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('python', python);
+lowlight.register('css', css);
+lowlight.register('html', html);
+lowlight.register('bash', bash);
 
 
 const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
