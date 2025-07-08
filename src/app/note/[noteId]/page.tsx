@@ -99,6 +99,8 @@ export default function NotePage() {
     const ttsFormRef = useRef<HTMLFormElement>(null);
     const lastTtsTimestamp = useRef<number | undefined>();
     const lastSummaryTimestamp = useRef<number | undefined>();
+    const lastTagTimestamp = useRef<number | undefined>();
+
 
     // Directly use the note from context. This is the single source of truth.
     const activeNote = useMemo(() => getNoteById(noteId), [getNoteById, noteId]);
@@ -112,24 +114,32 @@ export default function NotePage() {
 
     // Handle state changes from the TTS action
     useEffect(() => {
-        if (aiTtsState.audioData && aiTtsState.timestamp) {
-            if (aiTtsState.timestamp !== lastTtsTimestamp.current) {
+        if (aiTtsState.timestamp && aiTtsState.timestamp !== lastTtsTimestamp.current) {
+            if (aiTtsState.audioData) {
                 setAudioUrl(aiTtsState.audioData);
                 ttsFormRef.current?.reset();
-                lastTtsTimestamp.current = aiTtsState.timestamp;
             }
+            lastTtsTimestamp.current = aiTtsState.timestamp;
         }
     }, [aiTtsState]);
 
     // Handle state changes from the Summarization action
     useEffect(() => {
-        if (aiSummaryState.summary && aiSummaryState.timestamp && activeNote) {
-            if (aiSummaryState.timestamp !== lastSummaryTimestamp.current) {
+        if (aiSummaryState.timestamp && aiSummaryState.timestamp !== lastSummaryTimestamp.current) {
+            if (aiSummaryState.summary && activeNote) {
                 handleUpdateSummary(activeNote.id, aiSummaryState.summary);
-                lastSummaryTimestamp.current = aiSummaryState.timestamp;
             }
+            lastSummaryTimestamp.current = aiSummaryState.timestamp;
         }
     }, [aiSummaryState, activeNote, handleUpdateSummary]);
+    
+    // Handle state changes from the Tag suggestion action
+    useEffect(() => {
+        // Prevent updates if the timestamp is the same
+        if (aiTagState.timestamp && aiTagState.timestamp !== lastTagTimestamp.current) {
+            lastTagTimestamp.current = aiTagState.timestamp;
+        }
+    }, [aiTagState]);
 
 
     const breadcrumbs = useMemo(() => {
@@ -322,7 +332,7 @@ export default function NotePage() {
     }
 
     return (
-        <>
+        <div className="flex flex-col h-full">
             <header className="sticky top-0 z-10 flex flex-col items-start gap-4 border-b bg-background p-3">
                 <Breadcrumbs items={breadcrumbs} />
                 <div className="flex w-full items-center justify-between">
@@ -430,7 +440,7 @@ export default function NotePage() {
                                 <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
                                 <div className="flex flex-col space-y-2">
                                     <AiSuggestButton />
-                                    {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && (
+                                     {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
                                         <div className="space-y-2">
                                             <p className="text-sm font-medium">Suggestions:</p>
                                             <div className="flex flex-wrap gap-2">
@@ -449,11 +459,11 @@ export default function NotePage() {
                     </Popover>
                 </div>
             </div>
-            <main className="flex-1 p-4">
+            <main className="flex-1 overflow-auto p-4">
                 {activeNote.summary && (
-                    <Alert className="relative mb-4">
+                    <Alert className="relative mb-4 bg-primary/5 border-primary/20 [&>svg]:text-primary">
                         <BrainCircuit className="h-4 w-4" />
-                        <AlertTitle className="flex justify-between items-center">
+                        <AlertTitle className="flex justify-between items-center text-foreground">
                             <span>AI Summary</span>
                             <button
                                 onClick={() => handleUpdateSummary(activeNote.id, null)}
@@ -463,7 +473,7 @@ export default function NotePage() {
                                 <X className="h-4 w-4" />
                             </button>
                         </AlertTitle>
-                        <AlertDescription>
+                        <AlertDescription className="text-foreground/80">
                             {activeNote.summary}
                         </AlertDescription>
                     </Alert>
@@ -482,6 +492,8 @@ export default function NotePage() {
                     </div>
                 )}
             </main>
-        </>
+        </div>
     )
 }
+
+    
