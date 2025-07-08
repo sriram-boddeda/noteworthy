@@ -30,7 +30,6 @@ export function TrashList({ notes }: TrashListProps) {
 
   const onRestore = (note: Note) => {
     handleRestoreNote(note.id);
-    toast.success(`Restored "${note.title}"`);
   };
 
   const onPermanentDelete = (note: Note) => {

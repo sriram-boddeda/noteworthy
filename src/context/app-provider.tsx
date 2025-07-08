@@ -12,6 +12,7 @@ interface AppContextType {
   folders: Folder[];
   notes: Note[];
   trashedNotes: Note[];
+  trashedFolders: Folder[];
   isDataLoaded: boolean;
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
@@ -31,7 +32,9 @@ interface AppContextType {
   handleMoveNote: (noteId: string, folderId: string | null) => void;
   handleCopyNote: (noteId: string, folderId: string | null) => Note | null;
   handleRenameFolder: (folderId: string, newName: string) => void;
-  handleDeleteFolder: (folderId: string) => void;
+  handleDeleteFolder: (folderId: string, deleteNotes: boolean) => void;
+  handleRestoreFolder: (folderId: string) => void;
+  handlePermanentDeleteFolder: (folderId: string) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -43,7 +46,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -52,8 +55,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [aiTtsState, aiTtsAction] = React.useActionState<TextToSpeechState, FormData>(textToSpeechAction, { audioData: null, error: null });
   const [aiSummaryState, aiSummaryAction] = React.useActionState<SummarizeNoteState, FormData>(summarizeNoteAction, { summary: null, error: null });
 
-
-  // Load from localStorage on mount (client-side only)
   useEffect(() => {
     try {
       const storedNotes = localStorage.getItem('noteworthy-notes');
@@ -61,29 +62,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (storedNotes && storedFolders) {
         setAllNotes(JSON.parse(storedNotes));
-        setFolders(JSON.parse(storedFolders));
+        setAllFolders(JSON.parse(storedFolders));
       } else {
-        // If no data, use initial data
         const { notes: initialNotes, folders: initialFolders } = getInitialData();
         setAllNotes(initialNotes);
-        setFolders(initialFolders);
+        setAllFolders(initialFolders);
       }
     } catch (error) {
       console.error("Failed to load data from localStorage, using initial data.", error);
       const { notes: initialNotes, folders: initialFolders } = getInitialData();
       setAllNotes(initialNotes);
-      setFolders(initialFolders);
+      setAllFolders(initialFolders);
     } finally {
         setIsDataLoaded(true);
     }
   }, []);
 
-  // Save to localStorage on change
   useEffect(() => {
     if (isDataLoaded) {
       try {
         localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
-        localStorage.setItem('noteworthy-folders', JSON.stringify(folders));
+        localStorage.setItem('noteworthy-folders', JSON.stringify(allFolders));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
         toast.error("Could not save data", {
@@ -91,7 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [allNotes, folders, isDataLoaded]);
+  }, [allNotes, allFolders, isDataLoaded]);
 
    useEffect(() => {
     if(aiTagState.error && aiTagState.timestamp) {
@@ -122,7 +121,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [aiSummaryState]);
   
   const notes = useMemo(() => allNotes.filter(n => !n.isTrashed), [allNotes]);
+  const folders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
   const trashedNotes = useMemo(() => allNotes.filter(n => n.isTrashed), [allNotes]);
+  const trashedFolders = useMemo(() => allFolders.filter(f => f.isTrashed), [allFolders]);
 
   const uniqueTags = useMemo(() => {
     const allTags = notes.flatMap(note => note.tags);
@@ -134,7 +135,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notes]);
 
   const getNoteById = useCallback((id: string) => {
-    // Allows viewing a trashed note if accessed directly by URL
     return allNotes.find(note => note.id === id);
   }, [allNotes]);
 
@@ -151,8 +151,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newFolder: Folder = {
         id: uuidv4(),
         name: folderName,
+        isTrashed: false,
       };
-      setFolders(prev => [...prev, newFolder]);
+      setAllFolders(prev => [...prev, newFolder]);
       toast.success('Folder Created', { description: `Successfully created "${folderName}".` });
     }
   }, []);
@@ -212,8 +213,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   const handleRestoreNote = useCallback((noteId: string) => {
-      setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
-  }, []);
+      const noteToRestore = allNotes.find(n => n.id === noteId);
+      if (!noteToRestore) return;
+
+      const parentFolder = noteToRestore.folderId ? allFolders.find(f => f.id === noteToRestore.folderId) : null;
+
+      if (parentFolder && parentFolder.isTrashed) {
+          setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: false, folderId: null, lastModified: Date.now() } : n));
+          toast.warning(`Restored "${noteToRestore.title}" to Home`, {
+            description: "Its original folder is still in the trash."
+          });
+      } else {
+         setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
+         toast.success(`Restored "${noteToRestore.title}"`);
+      }
+  }, [allNotes, allFolders]);
 
   const handlePermanentDeleteNote = useCallback((noteId: string) => {
     setAllNotes(prev => prev.filter(n => n.id !== noteId));
@@ -250,28 +264,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleRenameFolder = useCallback((folderId: string, newName: string) => {
     if (newName.trim()) {
-      setFolders(prev => prev.map(f => (f.id === folderId ? { ...f, name: newName.trim() } : f)));
+      setAllFolders(prev => prev.map(f => (f.id === folderId ? { ...f, name: newName.trim() } : f)));
       toast.success('Folder Renamed', { description: `Folder was successfully renamed to "${newName.trim()}".` });
     }
   }, []);
+  
+  const handleDeleteFolder = useCallback((folderId: string, deleteNotes: boolean) => {
+    const folder = allFolders.find(f => f.id === folderId);
+    if (!folder) return;
 
-  const handleDeleteFolder = useCallback((folderId: string) => {
-    const folder = folders.find(f => f.id === folderId);
-    if (folder) {
-      // Move notes from this folder to the root
-      setAllNotes(prev => prev.map(n => (n.folderId === folderId ? { ...n, folderId: null, lastModified: Date.now() } : n)));
-      // Remove the folder
-      setFolders(prev => prev.filter(f => f.id !== folderId));
-      toast.success('Folder Deleted', {
-        description: `"${folder.name}" was deleted, and its notes were moved to the home view.`,
-      });
+    setAllFolders(prev => prev.map(f => f.id === folderId ? { ...f, isTrashed: true } : f));
+    
+    if (deleteNotes) {
+      setAllNotes(prev => prev.map(n => n.folderId === folderId ? { ...n, isTrashed: true } : n));
+      toast.success(`Moved "${folder.name}" and its notes to trash.`);
+    } else {
+      toast.success(`Moved "${folder.name}" to trash.`);
     }
-  }, [folders]);
+  }, [allFolders]);
+
+  const handleRestoreFolder = useCallback((folderId: string) => {
+    const folder = allFolders.find(f => f.id === folderId);
+    if (!folder) return;
+
+    const notesInFolder = allNotes.filter(n => n.folderId === folderId && n.isTrashed);
+
+    let restoreNotes = false;
+    if (notesInFolder.length > 0) {
+      if (window.confirm(`Do you also want to restore the ${notesInFolder.length} note(s) inside this folder?`)) {
+        restoreNotes = true;
+      }
+    }
+
+    setAllFolders(prev => prev.map(f => f.id === folderId ? { ...f, isTrashed: false } : f));
+
+    if (restoreNotes) {
+      const noteIdsToRestore = notesInFolder.map(n => n.id);
+      setAllNotes(prev => prev.map(n => noteIdsToRestore.includes(n.id) ? { ...n, isTrashed: false } : n));
+      toast.success(`Restored folder "${folder.name}" and its notes.`);
+    } else {
+      toast.success(`Restored folder "${folder.name}".`);
+    }
+  }, [allFolders, allNotes]);
+
+  const handlePermanentDeleteFolder = useCallback((folderId: string) => {
+    setAllFolders(prev => prev.filter(f => f.id !== folderId));
+    // Also permanently delete the notes that were inside it
+    setAllNotes(prev => prev.filter(n => n.folderId !== folderId));
+    toast.error("Folder and its contents permanently deleted.");
+  }, []);
 
   const value = useMemo(() => ({
     folders,
     notes,
     trashedNotes,
+    trashedFolders,
     isDataLoaded,
     getNoteById,
     getNotesByFolderId,
@@ -292,6 +339,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleCopyNote,
     handleRenameFolder,
     handleDeleteFolder,
+    handleRestoreFolder,
+    handlePermanentDeleteFolder,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -299,9 +348,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote,
-    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder,
+    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

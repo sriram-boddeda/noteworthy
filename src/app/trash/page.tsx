@@ -5,11 +5,12 @@ import { useMemo } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { TrashList } from '@/components/trash-list';
 import { useAppContext } from '@/context/app-provider';
-import { Trash2 } from 'lucide-react';
+import { Folder, Trash2 } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { TrashFolderList } from '@/components/trash-folder-list';
 
 export default function TrashPage() {
-  const { trashedNotes } = useAppContext();
+  const { trashedNotes, trashedFolders } = useAppContext();
   
   const breadcrumbs = useMemo(() => {
     return [
@@ -17,6 +18,8 @@ export default function TrashPage() {
       { href: `/trash`, label: 'Trash' }
     ];
   }, []);
+
+  const hasContent = trashedNotes.length > 0 || trashedFolders.length > 0;
 
   return (
     <div>
@@ -30,14 +33,33 @@ export default function TrashPage() {
             <div>
               <h2 className="font-headline text-xl font-semibold">Trash</h2>
               <p className="text-sm text-muted-foreground">
-                Notes in trash will be permanently deleted after 30 days.
+                Items in trash will be permanently deleted after 30 days.
               </p>
             </div>
           </div>
       </header>
       <main className="flex-1 p-4">
-        {trashedNotes.length > 0 ? (
-          <TrashList notes={trashedNotes} />
+        {hasContent ? (
+          <div className="space-y-8">
+            {trashedFolders.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                  <Folder className="size-5 text-muted-foreground" />
+                  Trashed Folders
+                </h3>
+                <TrashFolderList folders={trashedFolders} />
+              </div>
+            )}
+             {trashedNotes.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-lg font-semibold flex items-center gap-2">
+                  <Trash2 className="size-5 text-muted-foreground" />
+                  Trashed Notes
+                </h3>
+                <TrashList notes={trashedNotes} />
+              </div>
+            )}
+          </div>
         ) : (
            <div className="flex h-[calc(100vh-12rem)] items-center justify-center rounded-lg border-2 border-dashed bg-muted/50">
               <div className="text-center">

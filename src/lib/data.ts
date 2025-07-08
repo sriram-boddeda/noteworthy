@@ -17,6 +17,7 @@ export interface Note {
 export interface Folder {
   id: string;
   name: string;
+  isTrashed?: boolean;
 }
 
 export const noteTypeOptions = [
@@ -28,9 +29,9 @@ export const noteTypeOptions = [
 
 export function getInitialData(): { notes: Note[], folders: Folder[] } {
     const initialFolders: Folder[] = [
-      { id: uuidv4(), name: 'Productivity' },
-      { id: uuidv4(), name: 'Personal' },
-      { id: uuidv4(), name: 'Drafts' },
+      { id: uuidv4(), name: 'Productivity', isTrashed: false },
+      { id: uuidv4(), name: 'Personal', isTrashed: false },
+      { id: uuidv4(), name: 'Drafts', isTrashed: false },
     ];
     
     const now = Date.now();
