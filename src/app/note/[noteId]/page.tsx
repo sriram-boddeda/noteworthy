@@ -176,7 +176,9 @@ export default function NotePage() {
     }, [activeNote, folders]);
 
     const lastModifiedText = useMemo(() => {
-        if (!activeNote) return '';
+        if (!activeNote || typeof activeNote.lastModified !== 'number') {
+            return '';
+        }
         return formatDistanceToNow(new Date(activeNote.lastModified), { addSuffix: true });
     }, [activeNote]);
 
@@ -620,5 +622,3 @@ export default function NotePage() {
         </div>
     )
 }
-
-    
