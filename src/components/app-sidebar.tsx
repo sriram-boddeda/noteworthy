@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
@@ -49,6 +49,7 @@ export function AppSidebar() {
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
   
   const rootNotes = getNotesByFolderId(null);
+  const folderIds = useMemo(() => folders.map(f => f.id), [folders]);
 
   const handleCreateFolderSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -181,7 +182,7 @@ export function AppSidebar() {
             </SidebarMenu>
 
 
-          <Accordion type="multiple" defaultValue={folders.map(f => f.id)} className="w-full">
+          <Accordion type="multiple" defaultValue={folderIds} className="w-full">
             {folders.map((folder) => (
               <AccordionItem value={folder.id} key={folder.id} className="border-none">
                 <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">

@@ -97,6 +97,8 @@ export default function NotePage() {
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const ttsFormRef = useRef<HTMLFormElement>(null);
+    const lastTtsTimestamp = useRef<number | undefined>();
+    const lastSummaryTimestamp = useRef<number | undefined>();
 
     // Directly use the note from context. This is the single source of truth.
     const activeNote = useMemo(() => getNoteById(noteId), [getNoteById, noteId]);
@@ -111,15 +113,21 @@ export default function NotePage() {
     // Handle state changes from the TTS action
     useEffect(() => {
         if (aiTtsState.audioData && aiTtsState.timestamp) {
-            setAudioUrl(aiTtsState.audioData);
-            ttsFormRef.current?.reset();
+            if (aiTtsState.timestamp !== lastTtsTimestamp.current) {
+                setAudioUrl(aiTtsState.audioData);
+                ttsFormRef.current?.reset();
+                lastTtsTimestamp.current = aiTtsState.timestamp;
+            }
         }
     }, [aiTtsState]);
 
     // Handle state changes from the Summarization action
     useEffect(() => {
         if (aiSummaryState.summary && aiSummaryState.timestamp && activeNote) {
-            handleUpdateSummary(activeNote.id, aiSummaryState.summary);
+            if (aiSummaryState.timestamp !== lastSummaryTimestamp.current) {
+                handleUpdateSummary(activeNote.id, aiSummaryState.summary);
+                lastSummaryTimestamp.current = aiSummaryState.timestamp;
+            }
         }
     }, [aiSummaryState, activeNote, handleUpdateSummary]);
 
