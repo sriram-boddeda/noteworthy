@@ -394,7 +394,7 @@ export default function NotePage() {
                         />
                     </div>
 
-                    <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end">
+                    <div className="flex w-full flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end">
                         {activeNote.type !== 'calculator' && (
                             <>
                                 <form action={aiSummaryAction}>
@@ -449,7 +449,7 @@ export default function NotePage() {
                 </div>
 
                 {/* Metadata and delete action row */}
-                <div className="flex w-full flex-col items-start justify-between gap-4 text-sm sm:flex-row sm:items-center">
+                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
                     <div className="flex flex-wrap items-center gap-2">
                         {activeNote.tags.map(tag => (
                             <Badge key={tag} variant="secondary" className="cursor-default">
@@ -496,7 +496,7 @@ export default function NotePage() {
                             </PopoverContent>
                         </Popover>
                     </div>
-                     <div className="flex flex-shrink-0 items-center gap-4">
+                     <div className="flex items-center gap-4">
                         <p className="text-muted-foreground">Last updated {lastModifiedText}</p>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
