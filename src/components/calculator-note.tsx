@@ -84,11 +84,11 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
       <div className="p-0 flex-1 flex">
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
-          <div className="w-full md:w-3/4 p-4 flex flex-col">
-            <div className="flex justify-end mb-4">
+          <div className="relative w-full md:w-3/4 flex flex-col">
+            <div className="absolute top-4 right-4 z-10">
               <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="ghost" className="opacity-50 hover:opacity-100 transition-opacity">
                     <Sparkles className="mr-2 h-4 w-4 text-primary" />
                     Generate with AI
                   </Button>
@@ -125,7 +125,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
               placeholder="Type your calculations here... e.g., rent = 1200"
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
-              className="flex-grow border-0 resize-none focus-visible:ring-0 p-4 font-mono text-sm leading-6 bg-muted/30 rounded-md"
+              className="flex-grow h-full border-0 resize-none focus-visible:ring-0 p-4 font-mono text-sm leading-6 bg-transparent"
             />
           </div>
           <Separator orientation="horizontal" className="md:hidden" />
