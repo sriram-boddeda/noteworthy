@@ -398,7 +398,7 @@ export default function NotePage() {
                         />
                     </div>
                     <div className="text-right">
-                        <p className="text-sm text-muted-foreground whitespace-nowrap">Last updated {lastModifiedText}</p>
+                        <p className="text-sm text-muted-foreground">{lastModifiedText}</p>
                     </div>
                 </div>
 
@@ -453,7 +453,7 @@ export default function NotePage() {
                     </div>
 
                     {/* Right side: Actions */}
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                         {activeNote.type !== 'calculator' && (
                             <>
                                 <form action={aiSummaryAction}>
@@ -635,5 +635,7 @@ export default function NotePage() {
         </div>
     )
 }
+
+    
 
     
