@@ -53,7 +53,7 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
   }, [editor]);
 
   return (
-    <div className="p-2 border-b flex flex-wrap items-center gap-1">
+    <div className="p-2 border-b flex flex-wrap items-center gap-1 bg-card rounded-t-lg">
       <Toggle
         size="sm"
         pressed={editor.isActive('heading', { level: 1 })}
@@ -192,7 +192,7 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
     content: content,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-4 h-full min-h-[calc(100vh-16rem)]',
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-4 h-full min-h-[calc(100vh-16rem)] bg-card',
       },
     },
     onUpdate: ({ editor }) => {
@@ -208,7 +208,7 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
   }, [content, editor]);
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col border">
+    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col bg-card border rounded-lg">
       <TiptapToolbar editor={editor} />
       <div className="p-0 flex-grow overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />

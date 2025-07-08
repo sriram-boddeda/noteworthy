@@ -80,7 +80,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   }, [lines, results]);
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col border">
+    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col bg-card border rounded-lg">
       <div className="p-0 flex-1 flex">
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
@@ -131,7 +131,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
           <Separator orientation="horizontal" className="md:hidden" />
           <Separator orientation="vertical" className="hidden md:block" />
           {/* Right Panel: Output/Results */}
-          <div className="w-full md:w-1/2 p-6 bg-background font-mono text-sm overflow-auto">
+          <div className="w-full md:w-1/2 p-6 bg-card font-mono text-sm overflow-auto">
             {/* Variables Section */}
             <div className="mb-6">
               <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2">Variables</h3>
