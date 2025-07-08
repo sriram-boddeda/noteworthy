@@ -25,7 +25,7 @@ export const CodeBlockView = ({ node, updateAttributes, extension }: NodeViewPro
   const languages = extension.options.lowlight.listLanguages();
 
   return (
-    <NodeViewWrapper className="code-block-wrapper not-prose relative my-4 rounded-lg bg-[#282c34] text-sm">
+    <NodeViewWrapper className="code-block-wrapper not-prose relative my-4 rounded-lg bg-[#282c34] text-sm text-gray-400">
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
         <select
           contentEditable={false}
