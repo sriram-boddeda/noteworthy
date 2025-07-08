@@ -221,6 +221,7 @@ export function AppSidebar() {
                                         asChild
                                         isActive={pathname === `/note/${note.id}`}
                                         tooltip={{ children: note.title, side: "right" }}
+                                        className="pl-7"
                                     >
                                         <Link href={`/note/${note.id}`}>
                                             {icon}
