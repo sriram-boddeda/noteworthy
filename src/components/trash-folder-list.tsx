@@ -101,7 +101,7 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className={buttonVariants({ variant: 'outline' })}
+              className={buttonVariants({ variant: 'secondary' })}
               onClick={() => onRestoreConfirm(false)}
             >
               Restore Folder Only
