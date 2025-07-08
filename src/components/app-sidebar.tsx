@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -237,18 +236,18 @@ export function AppSidebar() {
 
   if (!isDataLoaded) {
     return (
-      <Sidebar variant="floating" side="left" collapsible="icon">
+      <Sidebar variant="floating" side="left" collapsible="offcanvas">
         <SidebarHeader>
           <Link href="/" className="flex h-12 items-center gap-2 p-2">
             <NoteworthyIcon className="size-8 text-primary shrink-0" />
-            <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">
+            <span className="text-xl font-headline font-semibold">
               Noteworthy
             </span>
           </Link>
         </SidebarHeader>
         <SidebarContent className="p-2">
           <div className="mb-2 flex items-center justify-between px-2">
-            <h2 className="text-base font-semibold group-data-[collapsible=icon]:hidden">Workspace</h2>
+            <h2 className="text-base font-semibold">Workspace</h2>
           </div>
           <SidebarMenu>
             <Skeleton className="h-8 w-full" />
@@ -256,8 +255,8 @@ export function AppSidebar() {
             <Skeleton className="h-8 w-full" />
           </SidebarMenu>
           <div className="px-2 mt-4">
-            <h2 className="text-base font-semibold mb-2 group-data-[collapsible=icon]:hidden">Tags</h2>
-            <div className="flex flex-wrap gap-1.5 group-data-[collapsible=icon]:hidden">
+            <h2 className="text-base font-semibold mb-2">Tags</h2>
+            <div className="flex flex-wrap gap-1.5">
               <Skeleton className="h-5 w-16 rounded-full" />
               <Skeleton className="h-5 w-20 rounded-full" />
               <Skeleton className="h-5 w-12 rounded-full" />
@@ -267,7 +266,7 @@ export function AppSidebar() {
         <SidebarFooter>
           <div className="flex h-14 items-center gap-2 p-2">
             <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
+            <div className="flex flex-col gap-1">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-3 w-24" />
             </div>
@@ -280,18 +279,18 @@ export function AppSidebar() {
   return (
     <>
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <Sidebar variant="floating" side="left" collapsible="icon">
+        <Sidebar variant="floating" side="left" collapsible="offcanvas">
             <SidebarHeader>
                 <Link href="/" className="flex h-12 items-center gap-2 p-2">
                     <NoteworthyIcon className="size-8 text-primary shrink-0" />
-                    <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">
+                    <span className="text-xl font-headline font-semibold">
                     Noteworthy
                     </span>
                 </Link>
             </SidebarHeader>
             <SidebarContent className="p-2">
                 <div className="mb-2 flex items-center justify-between px-2">
-                    <h2 className="text-base font-semibold group-data-[collapsible=icon]:hidden">Workspace</h2>
+                    <h2 className="text-base font-semibold">Workspace</h2>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="size-8 shrink-0">
@@ -328,7 +327,6 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/'}
-                                tooltip={{ children: "Home", side: "right" }}
                             >
                                 <Link href="/">
                                     <Home />
@@ -341,7 +339,6 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/history'}
-                            tooltip={{ children: "History", side: "right" }}
                         >
                             <Link href="/history">
                                 <History />
@@ -354,7 +351,6 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/trash'}
-                                tooltip={{ children: "Trash", side: "right" }}
                             >
                                 <Link href="/trash">
                                     <Trash2 />
@@ -367,13 +363,13 @@ export function AppSidebar() {
 
                 <Accordion type="single" collapsible className="w-full" defaultValue="recents">
                     <AccordionItem value="recents" className="border-none">
-                        <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                        <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90">
                             <div className="flex items-center gap-2">
                                 <Clock className="size-4" />
-                                <span className="group-data-[collapsible=icon]:hidden">Recent Notes</span>
+                                <span>Recent Notes</span>
                             </div>
                         </AccordionTrigger>
-                        <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
+                        <AccordionContent className="pt-1">
                         <SidebarMenu>
                             {recentNotes.map((note) => (
                                 <SidebarMenuItem key={note.id}>
@@ -381,7 +377,6 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             asChild
                                             isActive={pathname === `/note/${note.id}`}
-                                            tooltip={{ children: note.title, side: "right" }}
                                             className="pl-7"
                                         >
                                             <Link href={`/note/${note.id}`}>
@@ -408,7 +403,6 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             asChild
                                             isActive={pathname === `/note/${note.id}`}
-                                            tooltip={{ children: note.title, side: "right" }}
                                         >
                                             <Link href={`/note/${note.id}`}>
                                                 {icon}
@@ -428,14 +422,14 @@ export function AppSidebar() {
                   <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
                     <AccordionItem value={folder.id} className="border-none relative group/folder-item">
                        <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
-                          <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                          <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90">
                               <Link href={`/folder/${folder.id}`} className="flex items-center gap-2 flex-grow min-w-0" onClick={(e) => e.stopPropagation()}>
                                   <Folder className="size-4" />
-                                  <span className="group-data-[collapsible=icon]:hidden truncate">{folder.name}</span>
+                                  <span className="truncate">{folder.name}</span>
                               </Link>
                           </AccordionTrigger>
                       </Draggable>
-                      <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
+                      <AccordionContent className="pt-1">
                         <SidebarMenu>
                           {folder.notes.map((note) => {
                              const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
@@ -445,7 +439,6 @@ export function AppSidebar() {
                                     <SidebarMenuButton
                                      asChild
                                      isActive={pathname === `/note/${note.id}`}
-                                     tooltip={{ children: note.title, side: "right" }}
                                      className="pl-7"
                                    >
                                      <Link href={`/note/${note.id}`}>
@@ -464,8 +457,8 @@ export function AppSidebar() {
                 ))}
               </Accordion>
               <div className="px-2 mt-4">
-                  <h2 className="text-base font-semibold mb-2 group-data-[collapsible=icon]:hidden">Tags</h2>
-                  <div className="flex flex-wrap gap-1.5 group-data-[collapsible=icon]:hidden">
+                  <h2 className="text-base font-semibold mb-2">Tags</h2>
+                  <div className="flex flex-wrap gap-1.5">
                       {uniqueTags.map(tag => (
                           <Link href={`/tag/${tag}`} key={tag}>
                             <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
@@ -481,7 +474,7 @@ export function AppSidebar() {
                             <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
                             <AvatarFallback>U</AvatarFallback>
                         </Avatar>
-                        <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                        <div className="flex flex-col">
                             <span className="text-sm font-medium">User</span>
                             <span className="text-xs text-muted-foreground">user@example.com</span>
                         </div>
