@@ -49,7 +49,7 @@ export const CodeBlockView = ({ node, updateAttributes, extension }: NodeViewPro
           {isCopied ? <Check className="h-4 w-4 text-green-400" /> : <Clipboard className="h-4 w-4" />}
         </button>
       </div>
-      <pre className="p-0">
+      <pre className="p-4">
         <NodeViewContent as="code" className="!bg-transparent font-code" />
       </pre>
     </NodeViewWrapper>
