@@ -125,22 +125,22 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
               placeholder="Type your calculations here... e.g., rent = 1200"
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
-              className="flex-grow border-0 resize-none focus-visible:ring-0 p-4 font-mono text-sm leading-6 bg-muted/20 rounded-md"
+              className="flex-grow border-0 resize-none focus-visible:ring-0 p-4 font-mono text-sm leading-6 bg-muted/30 rounded-md"
             />
           </div>
           <Separator orientation="horizontal" className="md:hidden" />
           <Separator orientation="vertical" className="hidden md:block" />
           {/* Right Panel: Output/Results */}
-          <div className="w-full md:w-1/2 p-6 bg-card font-mono text-sm overflow-auto">
+          <div className="w-full md:w-1/2 p-6 bg-muted/20 font-mono text-sm overflow-auto">
             {/* Variables Section */}
             <div className="mb-6">
-              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2">Variables</h3>
+              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2 text-foreground/80">Variables</h3>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                 {variables.size > 0 ? (
                   Array.from(variables.entries()).map(([name, value]) => (
-                    <div key={name} className="flex justify-between items-center text-xs p-2 rounded-md bg-muted/50">
-                      <span className="text-muted-foreground">{name}</span>
-                      <span className="font-semibold text-primary">{value.toLocaleString()}</span>
+                    <div key={name} className="flex justify-between items-baseline text-xs p-2 rounded-md bg-background/50">
+                      <code className="text-muted-foreground">{name}</code>
+                      <span className="font-mono font-semibold text-primary">{value.toLocaleString()}</span>
                     </div>
                   ))
                 ) : (
@@ -153,7 +153,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
 
             {/* Results Section */}
             <div>
-              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2">Live Output</h3>
+              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2 text-foreground/80">Live Output</h3>
               <div className="space-y-1">
                 {outputLines.length > 0 ? (
                   outputLines.map(({ line, index, result }) => {
@@ -162,22 +162,22 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                     return (
                       <div
                         key={index}
-                        className="flex justify-between items-center p-2 rounded-md transition-colors hover:bg-muted/50 group"
+                        className="flex justify-between items-center p-2.5 rounded-md transition-colors hover:bg-background/50 group"
                       >
-                        <div className="flex-1 truncate pr-4 flex items-center">
-                          <span className="text-xs text-muted-foreground/50 mr-4 w-4 text-right group-hover:text-muted-foreground">{index + 1}</span>
-                          <span className="text-muted-foreground" title={line}>
-                            {line}
-                          </span>
+                        <div className="flex items-center gap-x-4">
+                           <span className="w-5 text-right font-mono text-xs text-muted-foreground select-none">{index + 1}</span>
+                           <code className="text-muted-foreground text-sm" title={line}>
+                            {line.trim() || <span className="text-muted-foreground/50 italic">empty line</span>}
+                          </code>
                         </div>
                         
                         {result.error ? (
-                            <span className="font-semibold text-destructive text-xs text-right" title={result.error}>
+                            <span className="font-medium text-destructive text-xs text-right" title={result.error}>
                               {result.error}
                             </span>
                         ) : (
-                          <span className="font-semibold text-accent text-right">
-                            = {result.value?.toLocaleString()}
+                          <span className="font-mono font-bold text-accent text-right text-lg">
+                            = {result.value?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </div>
