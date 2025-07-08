@@ -1,6 +1,6 @@
 'use client';
 
-import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import { useEditor, EditorContent, type Editor, ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
@@ -22,10 +22,43 @@ import {
   Minus as HorizontalRuleIcon,
   Link as LinkIcon,
   Highlighter,
+  CheckSquare,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
 import { useEffect, useCallback } from 'react';
+
+// Syntax Highlighting
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { lowlight } from 'lowlight/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import css from 'highlight.js/lib/languages/css';
+import html from 'highlight.js/lib/languages/xml';
+import bash from 'highlight.js/lib/languages/bash';
+import { CodeBlockView } from './code-block-view';
+
+// Task Lists
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+
+// Text Align
+import TextAlign from '@tiptap/extension-text-align';
+
+
+// Register languages with lowlight
+lowlight.registerLanguage('javascript', javascript);
+lowlight.registerLanguage('typescript', typescript);
+lowlight.registerLanguage('python', python);
+lowlight.registerLanguage('css', css);
+lowlight.registerLanguage('html', html);
+lowlight.registerLanguage('bash', bash);
+
 
 const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
   if (!editor) {
@@ -34,21 +67,17 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
 
   const handleLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href;
-    // Using window.prompt is a simple way to get user input for the URL
     const url = window.prompt('URL', previousUrl);
 
-    // If the user cancels the prompt
     if (url === null) {
       return;
     }
 
-    // If the user clears the URL, we'll remove the link
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
       return;
     }
 
-    // Otherwise, set or update the link
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }, [editor]);
 
@@ -121,6 +150,35 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
       <Separator orientation="vertical" className="h-8 mx-1" />
       <Toggle
         size="sm"
+        pressed={editor.isActive({ textAlign: 'left' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('left').run()}
+      >
+        <AlignLeft className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'center' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('center').run()}
+      >
+        <AlignCenter className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'right' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('right').run()}
+      >
+        <AlignRight className="h-4 w-4" />
+      </Toggle>
+       <Toggle
+        size="sm"
+        pressed={editor.isActive({ textAlign: 'justify' })}
+        onPressedChange={() => editor.chain().focus().setTextAlign('justify').run()}
+      >
+        <AlignJustify className="h-4 w-4" />
+      </Toggle>
+      <Separator orientation="vertical" className="h-8 mx-1" />
+      <Toggle
+        size="sm"
         pressed={editor.isActive('bulletList')}
         onPressedChange={() => editor.chain().focus().toggleBulletList().run()}
       >
@@ -132,6 +190,13 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
         onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
       >
         <ListOrdered className="h-4 w-4" />
+      </Toggle>
+      <Toggle
+        size="sm"
+        pressed={editor.isActive('taskList')}
+        onPressedChange={() => editor.chain().focus().toggleTaskList().run()}
+      >
+        <CheckSquare className="h-4 w-4" />
       </Toggle>
       <Toggle
         size="sm"
@@ -177,16 +242,27 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // HorizontalRule is part of StarterKit, configure it if needed
-        horizontalRule: {},
-        // CodeBlock is also part of StarterKit
-        codeBlock: {},
+        codeBlock: false, // We are using CodeBlockLowlight instead
       }),
       Underline,
       Highlight,
       Link.configure({
         openOnClick: true,
         autolink: true,
+      }),
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockView)
+        },
+      }).configure({
+        lowlight,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
       }),
     ],
     content: content,
@@ -202,7 +278,6 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
 
   useEffect(() => {
     if (editor && editor.getHTML() !== content) {
-        // Use `false` to avoid firing the onUpdate callback and creating an infinite loop
         editor.commands.setContent(content, false);
     }
   }, [content, editor]);
