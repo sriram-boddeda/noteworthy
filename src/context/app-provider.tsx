@@ -22,6 +22,7 @@ interface AppContextType {
   handleUpdateTags: (noteId: string, newTags: string[]) => void;
   handleDeleteNote: (noteId: string) => void;
   handleTitleChange: (noteId: string, newTitle: string) => void;
+  handleUpdateSummary: (noteId: string, summary: string | null) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -158,6 +159,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             tags: [],
             content: `# ${title}\n\nStart writing here...`,
             folderId: folderId,
+            summary: null,
         };
         setNotes(prev => [...prev, newNote]);
         toast({ title: 'Note Created', description: `Successfully created "${title}".` });
@@ -184,6 +186,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toast({ title: 'Note Deleted', variant: 'destructive' });
   }, [toast]);
 
+  const handleUpdateSummary = useCallback((noteId: string, summary: string | null) => {
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary } : n));
+  }, []);
+
   const value = useMemo(() => ({
     folders,
     notes,
@@ -198,6 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleUpdateTags,
     handleDeleteNote,
     handleTitleChange,
+    handleUpdateSummary,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -206,7 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryAction,
   }), [
     folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags,
-    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange,
+    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange, handleUpdateSummary,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

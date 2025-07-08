@@ -84,6 +84,7 @@ export default function NotePage() {
         handleUpdateTags, 
         handleDeleteNote, 
         handleTitleChange, 
+        handleUpdateSummary,
         aiTagAction, 
         aiTagState,
         aiTtsAction,
@@ -95,7 +96,6 @@ export default function NotePage() {
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const [summary, setSummary] = useState<string | null>(null);
     const ttsFormRef = useRef<HTMLFormElement>(null);
 
     // Directly use the note from context. This is the single source of truth.
@@ -118,10 +118,10 @@ export default function NotePage() {
 
     // Handle state changes from the Summarization action
     useEffect(() => {
-        if (aiSummaryState.summary && aiSummaryState.timestamp) {
-            setSummary(aiSummaryState.summary);
+        if (aiSummaryState.summary && aiSummaryState.timestamp && activeNote) {
+            handleUpdateSummary(activeNote.id, aiSummaryState.summary);
         }
-    }, [aiSummaryState]);
+    }, [aiSummaryState, activeNote, handleUpdateSummary]);
 
 
     const breadcrumbs = useMemo(() => {
@@ -442,13 +442,13 @@ export default function NotePage() {
                 </div>
             </div>
             <main className="flex-1 p-4">
-                {summary && (
+                {activeNote.summary && (
                     <Alert className="relative mb-4">
                         <BrainCircuit className="h-4 w-4" />
                         <AlertTitle className="flex justify-between items-center">
                             <span>AI Summary</span>
                             <button
-                                onClick={() => setSummary(null)}
+                                onClick={() => handleUpdateSummary(activeNote.id, null)}
                                 className="p-1 rounded-md hover:bg-muted"
                                 aria-label="Dismiss"
                             >
@@ -456,7 +456,7 @@ export default function NotePage() {
                             </button>
                         </AlertTitle>
                         <AlertDescription>
-                            {summary}
+                            {activeNote.summary}
                         </AlertDescription>
                     </Alert>
                 )}
