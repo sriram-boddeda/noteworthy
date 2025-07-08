@@ -381,9 +381,9 @@ export default function NotePage() {
 
     return (
         <div className="flex h-full flex-col">
-            <header className="sticky top-0 z-10 flex flex-col gap-4 border-b bg-background p-4">
-                {/* Main responsive row for title and actions */}
-                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <header className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background p-4">
+                 {/* Row 1: Title & Last Updated */}
+                <div className="flex w-full flex-wrap items-start justify-between gap-x-4 gap-y-2">
                     <div className="flex-1 space-y-1 min-w-0">
                         <Breadcrumbs items={breadcrumbs} />
                         <Input 
@@ -393,63 +393,14 @@ export default function NotePage() {
                             className="h-auto w-full truncate border-none bg-transparent p-0 font-headline text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-3xl"
                         />
                     </div>
-
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                        {activeNote.type !== 'calculator' && (
-                            <>
-                                <form action={aiSummaryAction}>
-                                    <input type="hidden" name="noteContent" value={activeNote.content} />
-                                    <input type="hidden" name="noteType" value={activeNote.type} />
-                                    <SummarizeButton />
-                                </form>
-                                <form action={aiTtsAction} ref={ttsFormRef}>
-                                    <input type="hidden" name="noteContent" value={activeNote.content} />
-                                    <input type="hidden" name="noteType" value={activeNote.type} />
-                                    <ListenButton />
-                                </form>
-                            </>
-                        )}
-                        <Button variant="default" size="sm">
-                            <Share className="mr-2 size-4" />
-                            Share
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                <Download className="mr-2 size-4" />
-                                Export
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuLabel>Export as</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={() => handleExport('pdf')}>PDF</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleExport('docx')}>DOCX</DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="size-9">
-                                    <MoreVertical className="size-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setMoveDialogOpen(true)}>
-                                    <Move className="mr-2 size-4" />
-                                    <span>Move Note</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setCopyDialogOpen(true)}>
-                                    <Copy className="mr-2 size-4" />
-                                    <span>Create Copy</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                    <div className="text-right">
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">Last updated {lastModifiedText}</p>
                     </div>
                 </div>
 
-                {/* Metadata and delete action row */}
-                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+                {/* Row 2: Tags & Actions */}
+                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                    {/* Left side: Tags */}
                     <div className="flex flex-wrap items-center gap-2">
                         {activeNote.tags.map(tag => (
                             <Badge key={tag} variant="secondary" className="cursor-default">
@@ -496,30 +447,86 @@ export default function NotePage() {
                             </PopoverContent>
                         </Popover>
                     </div>
-                     <div className="flex items-center gap-4">
-                        <p className="text-muted-foreground">Last updated {lastModifiedText}</p>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive-outline" size="sm">
-                                    <Trash2 className="mr-2 size-4" />
-                                    Delete
+
+                    {/* Right side: Actions */}
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                        {activeNote.type !== 'calculator' && (
+                            <>
+                                <form action={aiSummaryAction}>
+                                    <input type="hidden" name="noteContent" value={activeNote.content} />
+                                    <input type="hidden" name="noteType" value={activeNote.type} />
+                                    <SummarizeButton />
+                                </form>
+                                <form action={aiTtsAction} ref={ttsFormRef}>
+                                    <input type="hidden" name="noteContent" value={activeNote.content} />
+                                    <input type="hidden" name="noteType" value={activeNote.type} />
+                                    <ListenButton />
+                                </form>
+                            </>
+                        )}
+                        <Button variant="default" size="sm">
+                            <Share className="mr-2 size-4" />
+                            Share
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                <Download className="mr-2 size-4" />
+                                Export
                                 </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will move the note to the trash. You can restore it from there later.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDelete}>Continue</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuLabel>Export as</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => handleExport('pdf')}>PDF</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('docx')}>DOCX</DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="size-9">
+                                    <MoreVertical className="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setMoveDialogOpen(true)}>
+                                    <Move className="mr-2 size-4" />
+                                    <span>Move Note</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setCopyDialogOpen(true)}>
+                                    <Copy className="mr-2 size-4" />
+                                    <span>Create Copy</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                 <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                         <DropdownMenuItem 
+                                            onSelect={(e) => e.preventDefault()}
+                                            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                        >
+                                            <Trash2 className="mr-2 size-4" />
+                                            <span>Delete</span>
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will move the note to the trash. You can restore it from there later.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={onDelete}>Continue</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
+
 
                  {audioUrl && (
                     <div className="w-full pt-2">
@@ -624,3 +631,5 @@ export default function NotePage() {
         </div>
     )
 }
+
+    
