@@ -10,7 +10,7 @@ import { CalculatorNote } from '@/components/calculator-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X } from 'lucide-react';
+import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X, MoreVertical, Move, Copy } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { marked } from 'marked';
@@ -86,6 +101,8 @@ export default function NotePage() {
         handleDeleteNote, 
         handleTitleChange, 
         handleUpdateSummary,
+        handleMoveNote,
+        handleCopyNote,
         aiTagAction, 
         aiTagState,
         aiTtsAction,
@@ -96,6 +113,8 @@ export default function NotePage() {
     } = useAppContext();
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
+    const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
+    const [isCopyDialogOpen, setCopyDialogOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const ttsFormRef = useRef<HTMLFormElement>(null);
     const lastTtsTimestamp = useRef<number | undefined>();
@@ -181,6 +200,28 @@ export default function NotePage() {
         handleDeleteNote(activeNote.id);
         router.push('/');
     }, [activeNote, handleDeleteNote, router]);
+
+    const onMoveNote = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!activeNote) return;
+        const formData = new FormData(e.currentTarget);
+        const folderId = formData.get('folderId') as string;
+        handleMoveNote(activeNote.id, folderId === 'none' ? null : folderId);
+        setMoveDialogOpen(false);
+    }, [activeNote, handleMoveNote]);
+    
+    const onCopyNote = useCallback((e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!activeNote) return;
+        const formData = new FormData(e.currentTarget);
+        const folderId = formData.get('folderId') as string;
+        const newNote = handleCopyNote(activeNote.id, folderId === 'none' ? null : folderId);
+        setCopyDialogOpen(false);
+        if (newNote) {
+            router.push(`/note/${newNote.id}`);
+        }
+    }, [activeNote, handleCopyNote, router]);
+
 
     const handleExport = useCallback(async (format: 'html' | 'pdf' | 'docx') => {
         if (!activeNote) return;
@@ -366,6 +407,10 @@ export default function NotePage() {
                                 </form>
                             </>
                         )}
+                        <Button variant="default" size="sm">
+                            <Share className="mr-2 size-4" />
+                            Share
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm">
@@ -381,10 +426,23 @@ export default function NotePage() {
                                 <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="default" size="sm">
-                            <Share className="mr-2 size-4" />
-                            Share
-                        </Button>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="size-9">
+                                    <MoreVertical className="size-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setMoveDialogOpen(true)}>
+                                    <Move className="mr-2 size-4" />
+                                    <span>Move Note</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setCopyDialogOpen(true)}>
+                                    <Copy className="mr-2 size-4" />
+                                    <span>Create Copy</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
 
@@ -503,6 +561,64 @@ export default function NotePage() {
                     </div>
                 )}
             </main>
+
+            <Dialog open={isMoveDialogOpen} onOpenChange={setMoveDialogOpen}>
+                <DialogContent>
+                    <form onSubmit={onMoveNote}>
+                        <DialogHeader>
+                            <DialogTitle>Move Note</DialogTitle>
+                            <DialogDescription>Select a new folder for &quot;{activeNote.title}&quot;.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="folderId">Destination Folder</Label>
+                            <Select name="folderId" defaultValue={activeNote.folderId || 'none'}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a folder" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">(No Folder)</SelectItem>
+                                    {folders.map(f => (
+                                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setMoveDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit">Move Note</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCopyDialogOpen} onOpenChange={setCopyDialogOpen}>
+                <DialogContent>
+                    <form onSubmit={onCopyNote}>
+                        <DialogHeader>
+                            <DialogTitle>Create a Copy</DialogTitle>
+                            <DialogDescription>Select a destination folder for the new copy.</DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="folderId">Destination Folder</Label>
+                            <Select name="folderId" defaultValue={activeNote.folderId || 'none'}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a folder" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">(No Folder)</SelectItem>
+                                    {folders.map(f => (
+                                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter>
+                             <Button type="button" variant="ghost" onClick={() => setCopyDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit">Create Copy</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

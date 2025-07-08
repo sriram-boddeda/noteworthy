@@ -24,6 +24,8 @@ interface AppContextType {
   handleDeleteNote: (noteId: string) => void;
   handleTitleChange: (noteId: string, newTitle: string) => void;
   handleUpdateSummary: (noteId: string, summary: string | null) => void;
+  handleMoveNote: (noteId: string, folderId: string | null) => void;
+  handleCopyNote: (noteId: string, folderId: string | null) => Note | null;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -196,6 +198,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
   }, []);
 
+  const handleMoveNote = useCallback((noteId: string, folderId: string | null) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, folderId, lastModified: Date.now() } : n));
+      toast({ title: 'Note Moved', description: `"${note.title}" was moved successfully.` });
+    }
+  }, [notes, toast]);
+
+  const handleCopyNote = useCallback((noteId: string, folderId: string | null) => {
+    const noteToCopy = notes.find(n => n.id === noteId);
+    if (!noteToCopy) return null;
+
+    const newNote: Note = {
+      ...noteToCopy,
+      id: uuidv4(),
+      title: `Copy of ${noteToCopy.title}`,
+      folderId,
+      lastModified: Date.now(),
+    };
+
+    setNotes(prev => [...prev, newNote]);
+    toast({ title: 'Note Copied', description: `A copy of "${noteToCopy.title}" was created.` });
+    return newNote;
+  }, [notes, toast]);
+
   const value = useMemo(() => ({
     folders,
     notes,
@@ -212,6 +239,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDeleteNote,
     handleTitleChange,
     handleUpdateSummary,
+    handleMoveNote,
+    handleCopyNote,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -221,6 +250,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }), [
     folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange, handleUpdateSummary,
+    handleMoveNote, handleCopyNote,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 
