@@ -1,10 +1,20 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { PlusCircle, Trash2, Undo, Pencil, Move, Copy, Folder, FileText, FileUp, FileClock } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 import type { ActionHistory } from '@/lib/data';
 import { useAppContext } from '@/context/app-provider';
@@ -78,62 +88,104 @@ const formatDescription = (item: ActionHistory) => {
 
 export function HistoryList({ history }: { history: ActionHistory[] }) {
   const { getNoteById, folders, handleRetrieveItemFromHistory } = useAppContext();
+  const [itemToRetrieve, setItemToRetrieve] = useState<ActionHistory | null>(null);
+
+  const handleRetrieveClick = (item: ActionHistory) => {
+    if (item.entityType === 'folder' && item.containedEntitiesData && item.containedEntitiesData.length > 0) {
+      setItemToRetrieve(item);
+    } else {
+      handleRetrieveItemFromHistory(item.id, false);
+    }
+  };
+
+  const onRetrieveConfirm = (retrieveContained: boolean) => {
+    if (itemToRetrieve) {
+      handleRetrieveItemFromHistory(itemToRetrieve.id, retrieveContained);
+    }
+    setItemToRetrieve(null);
+  };
   
   return (
-    <div className="flow-root">
-      <ul role="list" className="-mb-8">
-        {history.map((item, eventIdx) => {
-          const isNote = item.entityType === 'note';
-          const entity = isNote ? getNoteById(item.entityId ?? '') : folders.find(f => f.id === item.entityId);
-          const linkHref = entity ? (isNote ? `/note/${entity.id}` : `/folder/${entity.id}`) : null;
-          
-          const Description = () => (
-            <p className="text-sm text-muted-foreground">{formatDescription(item)}</p>
-          );
-          
-          const canRetrieve = item.action.type === 'PERMANENT_DELETE' && !!item.entityData;
+    <>
+      <div className="flow-root">
+        <ul role="list" className="-mb-8">
+          {history.map((item, eventIdx) => {
+            const isNote = item.entityType === 'note';
+            const entity = isNote ? getNoteById(item.entityId ?? '') : folders.find(f => f.id === item.entityId);
+            const linkHref = entity ? (isNote ? `/note/${entity.id}` : `/folder/${entity.id}`) : null;
+            
+            const Description = () => (
+              <p className="text-sm text-muted-foreground">{formatDescription(item)}</p>
+            );
+            
+            const canRetrieve = item.action.type === 'PERMANENT_DELETE' && !!item.entityData;
 
 
-          return (
-            <li key={item.id}>
-              <div className="relative pb-8">
-                {eventIdx !== history.length - 1 ? (
-                  <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-border" aria-hidden="true" />
-                ) : null}
-                <div className="relative flex items-start space-x-3">
-                  {getActionIcon(item)}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm">
-                        {linkHref ? (
-                          <Link href={linkHref} className="hover:underline">
+            return (
+              <li key={item.id}>
+                <div className="relative pb-8">
+                  {eventIdx !== history.length - 1 ? (
+                    <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-border" aria-hidden="true" />
+                  ) : null}
+                  <div className="relative flex items-start space-x-3">
+                    {getActionIcon(item)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm">
+                          {linkHref ? (
+                            <Link href={linkHref} className="hover:underline">
+                              <Description />
+                            </Link>
+                          ) : (
                             <Description />
-                          </Link>
-                        ) : (
-                          <Description />
+                          )}
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                          </p>
+                        </div>
+                        {canRetrieve && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRetrieveClick(item)}
+                          >
+                            <FileUp className="mr-2 size-4" />
+                            Retrieve
+                          </Button>
                         )}
-                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
-                        </p>
                       </div>
-                      {canRetrieve && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRetrieveItemFromHistory(item.id)}
-                        >
-                          <FileUp className="mr-2 size-4" />
-                          Retrieve
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <AlertDialog open={!!itemToRetrieve} onOpenChange={(open) => !open && setItemToRetrieve(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retrieve Folder and Notes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The folder &quot;{itemToRetrieve?.entityName}&quot; was deleted with {itemToRetrieve?.containedEntitiesData?.length} note(s).
+              Would you like to retrieve the notes as well?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="secondary"
+              onClick={() => onRetrieveConfirm(false)}
+            >
+              Retrieve Folder Only
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => onRetrieveConfirm(true)}>
+              Retrieve Folder and Notes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

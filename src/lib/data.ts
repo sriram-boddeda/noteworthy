@@ -38,6 +38,7 @@ export interface ActionHistory {
   entityName: string;
   action: ActionDetail;
   entityData?: Note | Folder | null;
+  containedEntitiesData?: Note[] | null;
 }
 
 

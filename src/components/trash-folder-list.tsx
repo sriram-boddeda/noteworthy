@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import type { Folder } from '@/lib/data';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +13,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Card, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Folder as FolderIcon, Trash2, Undo } from 'lucide-react';
@@ -26,11 +25,13 @@ interface TrashFolderListProps {
 export function TrashFolderList({ folders }: TrashFolderListProps) {
   const { handleRestoreFolder, handlePermanentDeleteFolder, getTrashedNotesByFolderId } = useAppContext();
   const [folderToRestore, setFolderToRestore] = useState<Folder | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<Folder | null>(null);
 
-  const notesInFolderToRestore = useMemo(() => {
-    if (!folderToRestore) return [];
-    return getTrashedNotesByFolderId(folderToRestore.id);
-  }, [folderToRestore, getTrashedNotesByFolderId]);
+  const notesInFolder = useMemo(() => {
+    const folderId = folderToRestore?.id || folderToDelete?.id;
+    if (!folderId) return [];
+    return getTrashedNotesByFolderId(folderId);
+  }, [folderToRestore, folderToDelete, getTrashedNotesByFolderId]);
 
   const onRestoreClick = (folder: Folder) => {
     const notesInFolder = getTrashedNotesByFolderId(folder.id);
@@ -40,12 +41,28 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
       handleRestoreFolder(folder.id, false);
     }
   };
+  
+  const onDeleteClick = (folder: Folder) => {
+    const notesInFolder = getTrashedNotesByFolderId(folder.id);
+    if (notesInFolder.length > 0) {
+      setFolderToDelete(folder);
+    } else {
+      handlePermanentDeleteFolder(folder.id, false);
+    }
+  };
 
   const onRestoreConfirm = (restoreNotes: boolean) => {
     if (folderToRestore) {
       handleRestoreFolder(folderToRestore.id, restoreNotes);
     }
     setFolderToRestore(null);
+  };
+  
+  const onDeleteConfirm = (deleteNotes: boolean) => {
+    if (folderToDelete) {
+      handlePermanentDeleteFolder(folderToDelete.id, deleteNotes);
+    }
+    setFolderToDelete(null);
   };
 
   return (
@@ -63,27 +80,10 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
                 <Undo className="mr-2 size-4" />
                 Restore
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive-outline" size="sm">
-                    <Trash2 className="mr-2 size-4" />
-                    Delete Forever
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the folder
-                      and ALL notes inside it.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handlePermanentDeleteFolder(folder.id)}>Continue</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <Button variant="destructive-outline" size="sm" onClick={() => onDeleteClick(folder)}>
+                <Trash2 className="mr-2 size-4" />
+                Delete Forever
+              </Button>
             </CardFooter>
           </Card>
         ))}
@@ -94,20 +94,46 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Restore Folder?</AlertDialogTitle>
             <AlertDialogDescription>
-              The folder &quot;{folderToRestore?.name}&quot; contains {notesInFolderToRestore.length} note(s) that are also in the trash.
+              The folder &quot;{folderToRestore?.name}&quot; contains {notesInFolder.length} note(s) that are also in the trash.
               What would you like to do?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className={buttonVariants({ variant: 'secondary' })}
+              variant="secondary"
               onClick={() => onRestoreConfirm(false)}
             >
               Restore Folder Only
             </AlertDialogAction>
             <AlertDialogAction onClick={() => onRestoreConfirm(true)}>
               Restore Folder and Notes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!folderToDelete} onOpenChange={(open) => !open && setFolderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The folder &quot;{folderToDelete?.name}&quot; contains {notesInFolder.length} note(s) in the trash.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+               variant="secondary"
+              onClick={() => onDeleteConfirm(false)}
+            >
+              Delete Folder Only
+            </AlertDialogAction>
+            <AlertDialogAction 
+                variant="destructive"
+                onClick={() => onDeleteConfirm(true)}
+            >
+                Delete Folder & Notes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
