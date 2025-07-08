@@ -118,4 +118,21 @@ body {
     pointer-events: none;
     height: 0;
   }
+  
+  /* Custom Scrollbar Styles */
+  ::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
 }
