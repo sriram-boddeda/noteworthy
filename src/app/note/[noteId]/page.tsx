@@ -10,7 +10,7 @@ import { CalculatorNote } from '@/components/calculator-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2 } from 'lucide-react';
+import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { marked } from 'marked';
 import { useToast } from '@/hooks/use-toast';
@@ -59,6 +60,17 @@ function ListenButton() {
     )
 }
 
+function SummarizeButton() {
+    const { pending } = useFormStatus();
+    return (
+        <Button variant="outline" size="sm" type="submit" disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
+            Summarize
+        </Button>
+    )
+}
+
+
 export default function NotePage() {
     const params = useParams();
     const router = useRouter();
@@ -76,11 +88,14 @@ export default function NotePage() {
         aiTagState,
         aiTtsAction,
         aiTtsState,
+        aiSummaryAction,
+        aiSummaryState,
         isDataLoaded 
     } = useAppContext();
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [summary, setSummary] = useState<string | null>(null);
     const ttsFormRef = useRef<HTMLFormElement>(null);
 
     // Directly use the note from context. This is the single source of truth.
@@ -100,6 +115,13 @@ export default function NotePage() {
             ttsFormRef.current?.reset();
         }
     }, [aiTtsState]);
+
+    // Handle state changes from the Summarization action
+    useEffect(() => {
+        if (aiSummaryState.summary && aiSummaryState.timestamp) {
+            setSummary(aiSummaryState.summary);
+        }
+    }, [aiSummaryState]);
 
 
     const breadcrumbs = useMemo(() => {
@@ -307,11 +329,18 @@ export default function NotePage() {
                     </div>
                     <div className="flex items-center gap-2">
                         {activeNote.type !== 'calculator' && (
-                            <form action={aiTtsAction} ref={ttsFormRef}>
-                                <input type="hidden" name="noteContent" value={activeNote.content} />
-                                <input type="hidden" name="noteType" value={activeNote.type} />
-                                <ListenButton />
-                            </form>
+                            <>
+                                <form action={aiSummaryAction}>
+                                    <input type="hidden" name="noteContent" value={activeNote.content} />
+                                    <input type="hidden" name="noteType" value={activeNote.type} />
+                                    <SummarizeButton />
+                                </form>
+                                <form action={aiTtsAction} ref={ttsFormRef}>
+                                    <input type="hidden" name="noteContent" value={activeNote.content} />
+                                    <input type="hidden" name="noteType" value={activeNote.type} />
+                                    <ListenButton />
+                                </form>
+                            </>
                         )}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -413,6 +442,24 @@ export default function NotePage() {
                 </div>
             </div>
             <main className="flex-1 p-4">
+                {summary && (
+                    <Alert className="relative mb-4">
+                        <BrainCircuit className="h-4 w-4" />
+                        <AlertTitle className="flex justify-between items-center">
+                            <span>AI Summary</span>
+                            <button
+                                onClick={() => setSummary(null)}
+                                className="p-1 rounded-md hover:bg-muted"
+                                aria-label="Dismiss"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </AlertTitle>
+                        <AlertDescription>
+                            {summary}
+                        </AlertDescription>
+                    </Alert>
+                )}
                 {ActiveNoteComponent ? (
                     <ActiveNoteComponent 
                         key={activeNote.id}

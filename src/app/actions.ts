@@ -2,6 +2,7 @@
 'use server';
 
 import { generateCalculatorNoteStarter } from "@/ai/flows/generate-calculator-note-starter";
+import { summarizeNote } from "@/ai/flows/summarize-note";
 import { suggestTags } from "@/ai/flows/suggest-tags";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { z } from "zod";
@@ -130,6 +131,50 @@ export async function textToSpeechAction(prevState: TextToSpeechState, formData:
         console.error(error);
         return {
             error: "An unexpected error occurred while generating audio.",
+            timestamp: Date.now()
+        };
+    }
+}
+
+
+export type SummarizeNoteState = {
+    summary?: string | null;
+    error?: string | null;
+    timestamp?: number;
+}
+
+export async function summarizeNoteAction(prevState: SummarizeNoteState, formData: FormData): Promise<SummarizeNoteState> {
+    const schema = z.object({
+        noteContent: z.string(),
+        noteType: z.enum(['richtext', 'markdown', 'calculator']),
+    });
+
+    const validatedFields = schema.safeParse({
+        noteContent: formData.get('noteContent'),
+        noteType: formData.get('noteType'),
+    });
+
+    if (!validatedFields.success) {
+        return { error: "Invalid input for summarization.", timestamp: Date.now() };
+    }
+
+    const { noteContent, noteType } = validatedFields.data;
+
+    if (!noteContent || noteContent.trim().length < 50) {
+        return { error: "There is not enough content to summarize.", timestamp: Date.now() };
+    }
+
+    try {
+        const result = await summarizeNote({ noteContent, noteType });
+        if (result.summary) {
+            return { summary: result.summary, error: null, timestamp: Date.now() };
+        }
+        return { error: "Failed to generate summary from AI.", timestamp: Date.now() };
+
+    } catch (error) {
+        console.error(error);
+        return {
+            error: "An unexpected error occurred while generating the summary.",
             timestamp: Date.now()
         };
     }
