@@ -36,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -62,21 +62,74 @@ function Draggable({ id, data, children }: { id: string, data: Record<string, an
         // Opacity is managed by a class for better transition control
     };
     return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn(isDragging && 'dragging')}>
+        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn(isDragging && 'opacity-50')}>
             {children}
         </div>
     );
 }
 
 // Reusable Droppable component
-function Droppable({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
-    const { isOver, setNodeRef } = useDroppable({ id });
-    return (
-        <div ref={setNodeRef} className={cn(className, isOver && 'drop-indicator-folder')}>
-            {children}
+function Droppable({
+  id,
+  children,
+  className,
+  activeDragType,
+}: {
+  id: string
+  children: React.ReactNode
+  className?: string
+  activeDragType?: 'note' | 'folder'
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+
+  const isDraggingNote = activeDragType === 'note';
+  const isDraggingFolder = activeDragType === 'folder';
+
+  const isFolderTarget = id.startsWith('folder-');
+  const isHomeTarget = id === 'home-dropzone';
+  const isTrashTarget = id === 'trash-dropzone';
+
+  let showHighlight = false;
+  let showLock = false;
+
+  if (isOver) {
+    // Highlight trash for anything
+    if (isTrashTarget) {
+      showHighlight = true;
+    }
+    // Highlight home and folders only for notes
+    if ((isHomeTarget || isFolderTarget) && isDraggingNote) {
+      showHighlight = true;
+    }
+    // Lock folders when dragging a folder over them
+    if (isFolderTarget && isDraggingFolder) {
+      showLock = true;
+    }
+    // Lock home when dragging a folder over it
+    if (isHomeTarget && isDraggingFolder) {
+        showLock = true;
+    }
+  }
+  
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        className,
+        'relative',
+        showHighlight && 'drop-indicator-folder'
+      )}
+    >
+      {children}
+      {showLock && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-destructive/20 backdrop-blur-sm">
+          <Lock className="size-6 text-destructive" />
         </div>
-    );
+      )}
+    </div>
+  );
 }
+
 
 // Item Preview for DragOverlay
 function ItemPreview({ item, type }: { item: Note | FolderType, type: 'note' | 'folder' }) {
@@ -113,6 +166,7 @@ export function AppSidebar() {
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDragItem, setActiveDragItem] = useState<Active | null>(null);
+  const activeDragType = activeDragItem?.data.current?.type as 'note' | 'folder' | undefined;
   
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -269,7 +323,7 @@ export function AppSidebar() {
                 </div>
             
                 <SidebarMenu>
-                    <Droppable id="home-dropzone">
+                    <Droppable id="home-dropzone" activeDragType={activeDragType}>
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 asChild
@@ -295,7 +349,7 @@ export function AppSidebar() {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
-                     <Droppable id="trash-dropzone">
+                     <Droppable id="trash-dropzone" activeDragType={activeDragType}>
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 asChild
@@ -344,7 +398,7 @@ export function AppSidebar() {
                     </AccordionItem>
                 </Accordion>
 
-                <Droppable id="home-dropzone">
+                <Droppable id="home-dropzone" activeDragType={activeDragType}>
                     <SidebarMenu>
                          {filteredData.rootNotes.map((note) => {
                             const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
@@ -371,7 +425,7 @@ export function AppSidebar() {
 
               <Accordion type="multiple" defaultValue={folderIds} className="w-full">
                 {filteredData.folders.map((folder) => (
-                  <Droppable key={folder.id} id={`folder-${folder.id}`}>
+                  <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
                     <AccordionItem value={folder.id} className="border-none relative group/folder-item">
                        <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
                           <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
@@ -436,7 +490,7 @@ export function AppSidebar() {
                 </div>
             </SidebarFooter>
         </Sidebar>
-        <DragOverlay className="drag-overlay">
+        <DragOverlay>
             {activeDragItem ? <ItemPreview item={activeDragItem.data.current?.item} type={activeDragItem.data.current?.type} /> : null}
         </DragOverlay>
       </DndContext>
@@ -508,3 +562,5 @@ export function AppSidebar() {
     </>
   );
 }
+
+    
