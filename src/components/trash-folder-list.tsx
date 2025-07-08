@@ -58,7 +58,7 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
                 <FolderIcon className="size-5" /> {folder.name}
               </CardTitle>
             </CardHeader>
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end flex-wrap gap-2">
               <Button variant="ghost" size="sm" onClick={() => onRestoreClick(folder)}>
                 <Undo className="mr-2 size-4" />
                 Restore

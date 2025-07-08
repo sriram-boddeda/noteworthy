@@ -56,7 +56,7 @@ export function TrashList({ notes }: TrashListProps) {
                 ))}
               </div>
             </CardHeader>
-            <CardFooter className="flex justify-end gap-2">
+            <CardFooter className="flex justify-end flex-wrap gap-2">
               <Button variant="ghost" size="sm" onClick={() => onRestore(note)}>
                 <Undo className="mr-2 size-4" />
                 Restore
