@@ -27,7 +27,8 @@ export type ActionDetail =
   | { type: 'RESTORE'; from?: string }
   | { type: 'PERMANENT_DELETE' }
   | { type: 'MOVE'; from: string; to: string }
-  | { type: 'COPY'; destination: string };
+  | { type: 'COPY'; destination: string }
+  | { type: 'RETRIEVE' };
 
 export interface ActionHistory {
   id: string;
@@ -36,6 +37,7 @@ export interface ActionHistory {
   entityId: string | null;
   entityName: string;
   action: ActionDetail;
+  entityData?: Note | Folder | null;
 }
 
 

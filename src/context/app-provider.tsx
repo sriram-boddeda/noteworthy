@@ -29,6 +29,7 @@ interface AppContextType {
   handleUndoDelete: () => void;
   handleRestoreNote: (noteId: string) => void;
   handlePermanentDeleteNote: (noteId: string) => void;
+  handleRetrieveNoteFromHistory: (historyId: string) => void;
   handleTitleChange: (noteId: string, newTitle: string) => void;
   handleUpdateSummary: (noteId: string, summary: string | null) => void;
   handleMoveNote: (noteId: string, folderId: string | null) => void;
@@ -62,7 +63,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     entityType: 'note' | 'folder',
     entityId: string | null,
     entityName: string,
-    action: ActionDetail
+    action: ActionDetail,
+    entityData: Note | Folder | null = null
   ) => {
     setActionHistory(prev => {
       const newHistoryEntry: ActionHistory = {
@@ -72,6 +74,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         entityId,
         entityName,
         action,
+        entityData,
       };
       const newState = [newHistoryEntry, ...prev];
       if (newState.length > 200) {
@@ -281,10 +284,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handlePermanentDeleteNote = useCallback((noteId: string) => {
     const note = allNotes.find(n => n.id === noteId);
     if(note) {
-      logAction('note', null, note.title, { type: 'PERMANENT_DELETE' });
+      // Pass the full note object as entityData for potential retrieval
+      logAction('note', null, note.title, { type: 'PERMANENT_DELETE' }, note);
       setAllNotes(prev => prev.filter(n => n.id !== noteId));
     }
   }, [allNotes, logAction]);
+
+  const handleRetrieveNoteFromHistory = useCallback((historyId: string) => {
+    const historyItem = actionHistory.find(h => h.id === historyId);
+    if (!historyItem || !historyItem.entityData || historyItem.entityType !== 'note') {
+      toast.error("Retrieval Failed", { description: "The historical data for this note is incomplete." });
+      return;
+    }
+
+    const oldNoteData = historyItem.entityData as Note;
+
+    // Check if the original folder still exists and is not trashed
+    let targetFolderId = oldNoteData.folderId;
+    if (targetFolderId) {
+      const folderExists = allFolders.some(f => f.id === targetFolderId && !f.isTrashed);
+      if (!folderExists) {
+        targetFolderId = null; // Restore to home if folder is gone
+      }
+    }
+
+    const newNote: Note = {
+      ...oldNoteData,
+      id: uuidv4(), // Assign a new ID
+      title: `${oldNoteData.title} (Restored)`,
+      isTrashed: false,
+      folderId: targetFolderId,
+      lastModified: Date.now(),
+    };
+    
+    setAllNotes(prev => [...prev, newNote]);
+    logAction('note', newNote.id, newNote.title, { type: 'RETRIEVE' });
+    toast.success("Note Retrieved", { description: `"${newNote.title}" has been restored.` });
+  }, [actionHistory, allFolders, logAction]);
+
 
   const handleUpdateSummary = useCallback((noteId: string, summary: string | null) => {
     setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
@@ -389,12 +426,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const folder = allFolders.find(f => f.id === folderId);
     if (!folder) return;
 
-    logAction('folder', null, folder.name, { type: 'PERMANENT_DELETE' });
+    logAction('folder', null, folder.name, { type: 'PERMANENT_DELETE' }, folder);
     
     // Log deletion of notes inside
     const notesInside = allNotes.filter(n => n.folderId === folderId);
     notesInside.forEach(note => {
-        logAction('note', null, note.title, { type: 'PERMANENT_DELETE' });
+        logAction('note', null, note.title, { type: 'PERMANENT_DELETE' }, note);
     });
 
     setAllFolders(prev => prev.filter(f => f.id !== folderId));
@@ -423,6 +460,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleUndoDelete,
     handleRestoreNote,
     handlePermanentDeleteNote,
+    handleRetrieveNoteFromHistory,
     handleTitleChange,
     handleUpdateSummary,
     handleMoveNote,
@@ -439,7 +477,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryAction,
   }), [
     folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
-    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote,
+    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveNoteFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);

@@ -4,11 +4,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { PlusCircle, Trash2, Undo, Pencil, Move, Copy, Folder, FileText } from 'lucide-react';
+import { PlusCircle, Trash2, Undo, Pencil, Move, Copy, Folder, FileText, FileUp, FileClock } from 'lucide-react';
 
 import type { ActionHistory } from '@/lib/data';
 import { useAppContext } from '@/context/app-provider';
 import { cn } from '@/lib/utils';
+import { Button } from './ui/button';
 
 const getActionIcon = (item: ActionHistory) => {
   const { action, entityType } = item;
@@ -34,6 +35,9 @@ const getActionIcon = (item: ActionHistory) => {
     case 'PERMANENT_DELETE':
       icon = <Trash2 className="text-destructive" />;
       break;
+    case 'RETRIEVE':
+        icon = <FileClock className="text-green-500" />;
+        break;
     default:
       icon = entityType === 'folder' ? <Folder /> : <FileText />;
   }
@@ -64,6 +68,8 @@ const formatDescription = (item: ActionHistory) => {
       return <>Moved {entityType} {target} from <strong className="font-medium text-foreground">{action.from}</strong> to <strong className="font-medium text-foreground">{action.to}</strong>.</>;
     case 'COPY':
       return <>Copied {entityType} {target} to <strong className="font-medium text-foreground">{action.destination}</strong>.</>;
+    case 'RETRIEVE':
+        return <>Retrieved note {target} from history.</>;
     default:
       return 'An unknown action occurred.';
   }
@@ -71,7 +77,7 @@ const formatDescription = (item: ActionHistory) => {
 
 
 export function HistoryList({ history }: { history: ActionHistory[] }) {
-  const { getNoteById, folders } = useAppContext();
+  const { getNoteById, folders, handleRetrieveNoteFromHistory } = useAppContext();
   
   return (
     <div className="flow-root">
@@ -84,6 +90,9 @@ export function HistoryList({ history }: { history: ActionHistory[] }) {
           const Description = () => (
             <p className="text-sm text-muted-foreground">{formatDescription(item)}</p>
           );
+          
+          const canRetrieve = item.action.type === 'PERMANENT_DELETE' && item.entityType === 'note' && !!item.entityData;
+
 
           return (
             <li key={item.id}>
@@ -94,18 +103,30 @@ export function HistoryList({ history }: { history: ActionHistory[] }) {
                 <div className="relative flex items-start space-x-3">
                   {getActionIcon(item)}
                   <div className="min-w-0 flex-1">
-                    <div>
-                      {linkHref ? (
-                        <Link href={linkHref} className="hover:underline">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm">
+                        {linkHref ? (
+                          <Link href={linkHref} className="hover:underline">
+                            <Description />
+                          </Link>
+                        ) : (
                           <Description />
-                        </Link>
-                      ) : (
-                        <Description />
+                        )}
+                         <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {canRetrieve && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRetrieveNoteFromHistory(item.id)}
+                        >
+                          <FileUp className="mr-2 size-4" />
+                          Retrieve
+                        </Button>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
-                    </p>
                   </div>
                 </div>
               </div>
