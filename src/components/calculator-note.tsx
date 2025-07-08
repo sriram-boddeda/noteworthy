@@ -84,7 +84,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
       <div className="p-0 flex-1 flex">
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
-          <div className="w-full md:w-1/2 p-4 flex flex-col">
+          <div className="w-full md:w-3/4 p-4 flex flex-col">
             <div className="flex justify-end mb-4">
               <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
@@ -131,7 +131,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
           <Separator orientation="horizontal" className="md:hidden" />
           <Separator orientation="vertical" className="hidden md:block" />
           {/* Right Panel: Output/Results */}
-          <div className="w-full md:w-1/2 p-6 bg-muted/20 font-mono text-sm overflow-auto">
+          <div className="w-full md:w-1/4 p-6 bg-muted/20 font-mono text-sm overflow-auto">
             {/* Variables Section */}
             <div className="mb-6">
               <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2 text-foreground/80">Variables</h3>
