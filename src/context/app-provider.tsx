@@ -4,13 +4,14 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Folder, Note } from '@/lib/data';
-import { getInitialData, noteTypeOptions } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
+import { getInitialData } from '@/lib/data';
+import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 
 interface AppContextType {
   folders: Folder[];
   notes: Note[];
+  trashedNotes: Note[];
   isDataLoaded: boolean;
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
@@ -22,6 +23,9 @@ interface AppContextType {
   handleContentChange: (noteId: string, newContent: string) => void;
   handleUpdateTags: (noteId: string, newTags: string[]) => void;
   handleDeleteNote: (noteId: string) => void;
+  handleUndoDelete: () => void;
+  handleRestoreNote: (noteId: string) => void;
+  handlePermanentDeleteNote: (noteId: string) => void;
   handleTitleChange: (noteId: string, newTitle: string) => void;
   handleUpdateSummary: (noteId: string, summary: string | null) => void;
   handleMoveNote: (noteId: string, folderId: string | null) => void;
@@ -38,9 +42,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [allNotes, setAllNotes] = useState<Note[]>([]);
+  const [lastDeletedNote, setLastDeletedNote] = useState<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const { toast } = useToast();
 
   const [aiTagState, aiTagAction] = React.useActionState<SuggestTagsState, FormData>(suggestTagsAction, { suggestedTags: [], error: null });
   const [aiTtsState, aiTtsAction] = React.useActionState<TextToSpeechState, FormData>(textToSpeechAction, { audioData: null, error: null });
@@ -54,76 +58,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const storedFolders = localStorage.getItem('noteworthy-folders');
 
       if (storedNotes && storedFolders) {
-        setNotes(JSON.parse(storedNotes));
+        setAllNotes(JSON.parse(storedNotes));
         setFolders(JSON.parse(storedFolders));
       } else {
         // If no data, use initial data
         const { notes: initialNotes, folders: initialFolders } = getInitialData();
-        setNotes(initialNotes);
+        setAllNotes(initialNotes);
         setFolders(initialFolders);
       }
     } catch (error) {
       console.error("Failed to load data from localStorage, using initial data.", error);
       const { notes: initialNotes, folders: initialFolders } = getInitialData();
-      setNotes(initialNotes);
+      setAllNotes(initialNotes);
       setFolders(initialFolders);
     } finally {
         setIsDataLoaded(true);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save to localStorage on change
   useEffect(() => {
     if (isDataLoaded) {
       try {
-        localStorage.setItem('noteworthy-notes', JSON.stringify(notes));
+        localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
         localStorage.setItem('noteworthy-folders', JSON.stringify(folders));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
-        toast({
-            variant: "destructive",
-            title: "Could not save data",
+        toast.error("Could not save data", {
             description: "Your changes might not be saved.",
         });
       }
     }
-  }, [notes, folders, isDataLoaded, toast]);
+  }, [allNotes, folders, isDataLoaded]);
 
    useEffect(() => {
     if(aiTagState.error && aiTagState.timestamp) {
-        toast({
-            variant: "destructive",
-            title: "AI Suggestion Failed",
+        toast.error("AI Suggestion Failed", {
             description: aiTagState.error,
         })
     }
-  }, [aiTagState, toast]);
+  }, [aiTagState]);
 
   useEffect(() => {
     if(aiTtsState.error && aiTtsState.timestamp) {
-        toast({
-            variant: "destructive",
-            title: "AI Text-to-Speech Failed",
+        toast.error("AI Text-to-Speech Failed", {
             description: aiTtsState.error,
         })
     }
-  }, [aiTtsState, toast]);
+  }, [aiTtsState]);
 
   useEffect(() => {
     if (aiSummaryState.error && aiSummaryState.timestamp) {
-      toast({
-        variant: 'destructive',
-        title: 'AI Summarization Failed',
+      toast.error('AI Summarization Failed', {
         description: aiSummaryState.error,
       });
     } else if (aiSummaryState.summary && aiSummaryState.timestamp) {
-      toast({
-        title: 'Summary Generated',
+      toast.success('Summary Generated', {
         description: 'The AI summary has been created successfully.',
       });
     }
-  }, [aiSummaryState, toast]);
+  }, [aiSummaryState]);
+  
+  const notes = useMemo(() => allNotes.filter(n => !n.isTrashed), [allNotes]);
+  const trashedNotes = useMemo(() => allNotes.filter(n => n.isTrashed), [allNotes]);
 
   const uniqueTags = useMemo(() => {
     const allTags = notes.flatMap(note => note.tags);
@@ -135,8 +132,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notes]);
 
   const getNoteById = useCallback((id: string) => {
-    return notes.find(note => note.id === id);
-  }, [notes]);
+    // Allows viewing a trashed note if accessed directly by URL
+    return allNotes.find(note => note.id === id);
+  }, [allNotes]);
 
   const getNotesByFolderId = useCallback((folderId: string | null) => {
     return notes.filter(note => note.folderId === folderId).sort((a, b) => a.title.localeCompare(b.title));
@@ -153,9 +151,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         name: folderName,
       };
       setFolders(prev => [...prev, newFolder]);
-      toast({ title: 'Folder Created', description: `Successfully created "${folderName}".` });
+      toast.success('Folder Created', { description: `Successfully created "${folderName}".` });
     }
-  }, [toast]);
+  }, []);
 
   const handleCreateNote = useCallback((title: string, type: Note['type'], folderId: string | null) => {
      if(title && type) {
@@ -167,47 +165,67 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             content: `# ${title}\n\nStart writing here...`,
             folderId: folderId,
             summary: null,
+            isTrashed: false,
             lastModified: Date.now(),
         };
-        setNotes(prev => [...prev, newNote]);
-        toast({ title: 'Note Created', description: `Successfully created "${title}".` });
+        setAllNotes(prev => [...prev, newNote]);
+        toast.success('Note Created', { description: `Successfully created "${title}".` });
         return newNote;
     }
     return null;
-  }, [toast]);
+  }, []);
 
   const handleContentChange = useCallback((noteId: string, newContent: string) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, lastModified: Date.now() } : n));
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, lastModified: Date.now() } : n));
   }, []);
 
   const handleTitleChange = useCallback((noteId: string, newTitle: string) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: newTitle, lastModified: Date.now() } : n));
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: newTitle, lastModified: Date.now() } : n));
   }, []);
   
   const handleUpdateTags = useCallback((noteId: string, newTags: string[]) => {
     const updatedTags = [...new Set(newTags)].filter(Boolean).map(t => t.trim().toLowerCase());
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, tags: updatedTags, lastModified: Date.now() } : n));
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, tags: updatedTags, lastModified: Date.now() } : n));
   }, []);
 
   const handleDeleteNote = useCallback((noteId: string) => {
-    setNotes(prev => prev.filter(n => n.id !== noteId));
-    toast({ title: 'Note Deleted', variant: 'destructive' });
-  }, [toast]);
+    const noteToDelete = allNotes.find(n => n.id === noteId);
+    if(noteToDelete) {
+        setLastDeletedNote(noteToDelete); // For quick undo
+        setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: true, lastModified: Date.now() } : n));
+    }
+  }, [allNotes]);
+
+  const handleUndoDelete = useCallback(() => {
+    if (lastDeletedNote) {
+      setAllNotes(prev => prev.map(n => n.id === lastDeletedNote.id ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
+      toast.success(`Restored "${lastDeletedNote.title}"`);
+      setLastDeletedNote(null);
+    }
+  }, [lastDeletedNote]);
+  
+  const handleRestoreNote = useCallback((noteId: string) => {
+      setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
+  }, []);
+
+  const handlePermanentDeleteNote = useCallback((noteId: string) => {
+    setAllNotes(prev => prev.filter(n => n.id !== noteId));
+  }, []);
 
   const handleUpdateSummary = useCallback((noteId: string, summary: string | null) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
   }, []);
 
   const handleMoveNote = useCallback((noteId: string, folderId: string | null) => {
-    const note = notes.find(n => n.id === noteId);
+    const note = allNotes.find(n => n.id === noteId);
     if (note) {
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, folderId, lastModified: Date.now() } : n));
-      toast({ title: 'Note Moved', description: `"${note.title}" was moved successfully.` });
+      setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, folderId, lastModified: Date.now() } : n));
+      toast.success('Note Moved', { description: `"${note.title}" was moved successfully.` });
     }
-  }, [notes, toast]);
+  }, [allNotes]);
 
   const handleCopyNote = useCallback((noteId: string, folderId: string | null) => {
-    const noteToCopy = notes.find(n => n.id === noteId);
+    const noteToCopy = allNotes.find(n => n.id === noteId);
     if (!noteToCopy) return null;
 
     const newNote: Note = {
@@ -218,14 +236,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastModified: Date.now(),
     };
 
-    setNotes(prev => [...prev, newNote]);
-    toast({ title: 'Note Copied', description: `A copy of "${noteToCopy.title}" was created.` });
+    setAllNotes(prev => [...prev, newNote]);
+    toast.success('Note Copied', { description: `A copy of "${noteToCopy.title}" was created.` });
     return newNote;
-  }, [notes, toast]);
+  }, [allNotes]);
 
   const value = useMemo(() => ({
     folders,
     notes,
+    trashedNotes,
     isDataLoaded,
     getNoteById,
     getNotesByFolderId,
@@ -237,6 +256,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleContentChange,
     handleUpdateTags,
     handleDeleteNote,
+    handleUndoDelete,
+    handleRestoreNote,
+    handlePermanentDeleteNote,
     handleTitleChange,
     handleUpdateSummary,
     handleMoveNote,
@@ -248,9 +270,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
-    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange, handleUpdateSummary,
-    handleMoveNote, handleCopyNote,
+    folders, notes, trashedNotes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
+    handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote,
+    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

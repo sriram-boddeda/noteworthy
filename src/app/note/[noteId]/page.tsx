@@ -44,7 +44,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { marked } from 'marked';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { formatDistanceToNow } from 'date-fns';
@@ -91,14 +91,14 @@ export default function NotePage() {
     const params = useParams();
     const router = useRouter();
     const noteId = params.noteId as string;
-    const { toast } = useToast();
     
     const { 
         folders, 
         getNoteById, 
         handleContentChange, 
         handleUpdateTags, 
-        handleDeleteNote, 
+        handleDeleteNote,
+        handleUndoDelete,
         handleTitleChange, 
         handleUpdateSummary,
         handleMoveNote,
@@ -197,9 +197,16 @@ export default function NotePage() {
 
     const onDelete = useCallback(() => {
         if (!activeNote) return;
+        const noteTitle = activeNote.title;
         handleDeleteNote(activeNote.id);
         router.push('/');
-    }, [activeNote, handleDeleteNote, router]);
+        toast.success(`Moved "${noteTitle}" to Trash`, {
+            action: {
+                label: "Undo",
+                onClick: () => handleUndoDelete(),
+            }
+        })
+    }, [activeNote, handleDeleteNote, handleUndoDelete, router]);
 
     const onMoveNote = useCallback((e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -227,8 +234,7 @@ export default function NotePage() {
         if (!activeNote) return;
 
         if (format === 'docx') {
-            toast({
-                title: "Feature not available",
+            toast.info("Feature not available", {
                 description: `Exporting to DOCX is not yet supported.`,
             });
             return;
@@ -282,16 +288,14 @@ export default function NotePage() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast({
-                title: "Export Successful",
+            toast.success("Export Successful", {
                 description: `"${activeNote.title}" has been downloaded as an HTML file.`,
             });
             return;
         }
         
         if (format === 'pdf') {
-             toast({
-                title: "Generating PDF...",
+             toast.info("Generating PDF...", {
                 description: "This may take a moment.",
             });
             
@@ -303,9 +307,7 @@ export default function NotePage() {
             
             const contentToRender = exportContainer.querySelector('.render-container') as HTMLElement;
             if (!contentToRender) {
-                 toast({
-                    variant: "destructive",
-                    title: "PDF Export Failed",
+                 toast.error("PDF Export Failed", {
                     description: "Could not find content to render.",
                 });
                 document.body.removeChild(exportContainer);
@@ -349,23 +351,20 @@ export default function NotePage() {
 
                 pdf.save(`${activeNote.title.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`);
 
-                toast({
-                    title: "Export Successful",
+                toast.success("Export Successful", {
                     description: `"${activeNote.title}" has been downloaded as a PDF file.`,
                 });
 
             } catch (error) {
                 console.error("PDF generation failed", error);
-                toast({
-                    variant: "destructive",
-                    title: "PDF Export Failed",
+                toast.error("PDF Export Failed", {
                     description: "An error occurred while generating the PDF.",
                 });
             } finally {
                 document.body.removeChild(exportContainer);
             }
         }
-    }, [activeNote, toast]);
+    }, [activeNote]);
 
     const ActiveNoteComponent = activeNote ? noteComponentMap[activeNote.type] : null;
 
@@ -504,10 +503,9 @@ export default function NotePage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete your
-                                    note and remove your data from our servers.
+                                    This will move the note to the trash. You can restore it from there later.
                                 </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

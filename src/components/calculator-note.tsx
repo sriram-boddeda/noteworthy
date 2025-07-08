@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
@@ -42,7 +42,6 @@ interface CalculatorNoteProps {
 }
 
 export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps) {
-  const { toast } = useToast();
   const [state, formAction] = useActionState(generateNoteAction, initialState);
   const [isDialogOpen, setDialogOpen] = useState(false);
 
@@ -50,19 +49,16 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
     if (state.starterTemplate) {
       onContentChange(state.starterTemplate);
       setDialogOpen(false);
-      toast({
-        title: 'Template Generated!',
+      toast.success('Template Generated!', {
         description: 'Your calculator note is ready to use.',
       });
     }
     if (state.error) {
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
+      toast.error('Uh oh! Something went wrong.', {
         description: state.error,
       });
     }
-  }, [state, toast, onContentChange]);
+  }, [state, onContentChange]);
 
   const { results, variables } = useMemo(() => evaluateNotebook(content), [content]);
   const lines = useMemo(() => content.split('\n'), [content]);

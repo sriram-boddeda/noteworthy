@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -198,6 +198,18 @@ export function AppSidebar() {
                         <Link href="/">
                             <Home />
                             <span>Home</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton
+                        asChild
+                        isActive={pathname === '/trash'}
+                        tooltip={{ children: "Trash", side: "right" }}
+                    >
+                        <Link href="/trash">
+                            <Trash2 />
+                            <span>Trash</span>
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

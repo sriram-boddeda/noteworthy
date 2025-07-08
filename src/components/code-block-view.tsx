@@ -4,17 +4,16 @@ import React, { useState } from 'react';
 import type { NodeViewProps } from '@tiptap/react';
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import { Check, Clipboard } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const CodeBlockView = ({ node, updateAttributes, extension }: NodeViewProps) => {
-  const { toast } = useToast();
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = () => {
     if (node.textContent) {
       navigator.clipboard.writeText(node.textContent).then(() => {
         setIsCopied(true);
-        toast({ title: 'Code copied to clipboard!' });
+        toast.success('Code copied to clipboard!');
         setTimeout(() => {
           setIsCopied(false);
         }, 2000);
