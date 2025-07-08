@@ -30,6 +30,8 @@ interface AppContextType {
   handleUpdateSummary: (noteId: string, summary: string | null) => void;
   handleMoveNote: (noteId: string, folderId: string | null) => void;
   handleCopyNote: (noteId: string, folderId: string | null) => Note | null;
+  handleRenameFolder: (folderId: string, newName: string) => void;
+  handleDeleteFolder: (folderId: string) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -246,6 +248,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newNote;
   }, [allNotes]);
 
+  const handleRenameFolder = useCallback((folderId: string, newName: string) => {
+    if (newName.trim()) {
+      setFolders(prev => prev.map(f => (f.id === folderId ? { ...f, name: newName.trim() } : f)));
+      toast.success('Folder Renamed', { description: `Folder was successfully renamed to "${newName.trim()}".` });
+    }
+  }, []);
+
+  const handleDeleteFolder = useCallback((folderId: string) => {
+    const folder = folders.find(f => f.id === folderId);
+    if (folder) {
+      // Move notes from this folder to the root
+      setAllNotes(prev => prev.map(n => (n.folderId === folderId ? { ...n, folderId: null, lastModified: Date.now() } : n)));
+      // Remove the folder
+      setFolders(prev => prev.filter(f => f.id !== folderId));
+      toast.success('Folder Deleted', {
+        description: `"${folder.name}" was deleted, and its notes were moved to the home view.`,
+      });
+    }
+  }, [folders]);
+
   const value = useMemo(() => ({
     folders,
     notes,
@@ -268,6 +290,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleUpdateSummary,
     handleMoveNote,
     handleCopyNote,
+    handleRenameFolder,
+    handleDeleteFolder,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -277,7 +301,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }), [
     folders, notes, trashedNotes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote,
-    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote,
+    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

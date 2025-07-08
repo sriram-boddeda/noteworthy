@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search, Trash2 } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -31,23 +31,48 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { noteTypeOptions, type Note } from '@/lib/data';
+import { noteTypeOptions, type Note, type Folder as FolderType } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 
 
 export function AppSidebar() {
-  const { folders, notes, getNotesByFolderId, uniqueTags, handleCreateFolder, handleCreateNote, isDataLoaded, recentNotes } = useAppContext();
+  const { 
+      folders, 
+      notes, 
+      getNotesByFolderId, 
+      uniqueTags, 
+      handleCreateFolder, 
+      handleCreateNote, 
+      isDataLoaded, 
+      recentNotes,
+      handleRenameFolder,
+      handleDeleteFolder,
+  } = useAppContext();
+
   const pathname = usePathname();
   const router = useRouter();
 
   const [isNewFolderOpen, setNewFolderOpen] = useState(false);
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
+  const [isRenameOpen, setRenameOpen] = useState(false);
+  const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<FolderType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   const rootNotes = useMemo(() => getNotesByFolderId(null), [getNotesByFolderId]);
@@ -99,6 +124,25 @@ export function AppSidebar() {
     if (newNote) {
       setNewNoteOpen(false);
       router.push(`/note/${newNote.id}`);
+    }
+  };
+
+  const handleRenameSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (editingFolder) {
+      const formData = new FormData(e.currentTarget);
+      const newName = formData.get('newFolderName') as string;
+      handleRenameFolder(editingFolder.id, newName);
+      setRenameOpen(false);
+      setEditingFolder(null);
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (editingFolder) {
+      handleDeleteFolder(editingFolder.id);
+      setDeleteOpen(false);
+      setEditingFolder(null);
     }
   };
 
@@ -273,13 +317,35 @@ export function AppSidebar() {
 
           <Accordion type="multiple" defaultValue={folderIds} className="w-full">
             {filteredData.folders.map((folder) => (
-              <AccordionItem value={folder.id} key={folder.id} className="border-none">
+              <AccordionItem value={folder.id} key={folder.id} className="border-none relative group/folder-item">
                 <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-                    <Link href={`/folder/${folder.id}`} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <Link href={`/folder/${folder.id}`} className="flex items-center gap-2 flex-grow min-w-0" onClick={(e) => e.stopPropagation()}>
                         <Folder className="size-4" />
-                        <span className="group-data-[collapsible=icon]:hidden">{folder.name}</span>
+                        <span className="group-data-[collapsible=icon]:hidden truncate">{folder.name}</span>
                     </Link>
                 </AccordionTrigger>
+                <div className="absolute right-8 top-1 z-10 opacity-0 group-hover/folder-item:opacity-100 group-focus-within/folder-item:opacity-100 group-data-[collapsible=icon]:hidden">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6">
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent onClick={(e) => e.stopPropagation()} align="end">
+                      <DropdownMenuItem onSelect={() => { setEditingFolder(folder); setRenameOpen(true); }}>
+                        <Pencil className="mr-2 size-4" />
+                        Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => { setEditingFolder(folder); setDeleteOpen(true); }}
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
                   <SidebarMenu>
                     {folder.notes.map((note) => {
@@ -397,6 +463,47 @@ export function AppSidebar() {
             </form>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <form onSubmit={handleRenameSubmit}>
+            <DialogHeader>
+              <DialogTitle>Rename Folder</DialogTitle>
+              <DialogDescription>
+                Enter a new name for the folder &quot;{editingFolder?.name}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="newFolderName" className="sr-only">Folder Name</Label>
+              <Input
+                id="newFolderName"
+                name="newFolderName"
+                defaultValue={editingFolder?.name}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setRenameOpen(false)}>Cancel</Button>
+              <Button type="submit">Rename</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the folder &quot;{editingFolder?.name}&quot;. All notes inside it will be moved to your main notes list. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEditingFolder(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Delete Folder</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
