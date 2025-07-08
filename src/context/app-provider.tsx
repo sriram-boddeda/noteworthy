@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Folder, Note } from '@/lib/data';
 import { getInitialData, noteTypeOptions } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { suggestTagsAction, type SuggestTagsState } from '@/app/actions';
+import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState } from '@/app/actions';
 
 interface AppContextType {
   folders: Folder[];
@@ -24,6 +24,8 @@ interface AppContextType {
   handleTitleChange: (noteId: string, newTitle: string) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
+  aiTtsState: TextToSpeechState;
+  aiTtsAction: (payload: FormData) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -35,6 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const [aiTagState, aiTagAction] = React.useActionState<SuggestTagsState, FormData>(suggestTagsAction, { suggestedTags: [], error: null });
+  const [aiTtsState, aiTtsAction] = React.useActionState<TextToSpeechState, FormData>(textToSpeechAction, { audioData: null, error: null });
 
   // Load from localStorage on mount (client-side only)
   useEffect(() => {
@@ -80,7 +83,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notes, folders, isDataLoaded, toast]);
 
    useEffect(() => {
-    if(aiTagState.error) {
+    if(aiTagState.error && aiTagState.timestamp) {
         toast({
             variant: "destructive",
             title: "AI Suggestion Failed",
@@ -88,6 +91,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
     }
   }, [aiTagState, toast]);
+
+  useEffect(() => {
+    if(aiTtsState.error && aiTtsState.timestamp) {
+        toast({
+            variant: "destructive",
+            title: "AI Text-to-Speech Failed",
+            description: aiTtsState.error,
+        })
+    }
+  }, [aiTtsState, toast]);
 
   const uniqueTags = useMemo(() => {
     const allTags = notes.flatMap(note => note.tags);
@@ -168,10 +181,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleTitleChange,
     aiTagState,
     aiTagAction,
+    aiTtsState,
+    aiTtsAction,
   }), [
     folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange,
-    aiTagState, aiTagAction
+    aiTagState, aiTagAction, aiTtsState, aiTtsAction
   ]);
 
 

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import { useAppContext } from '@/context/app-provider';
@@ -10,7 +10,7 @@ import { CalculatorNote } from '@/components/calculator-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2 } from 'lucide-react';
+import { Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2 } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,16 @@ function AiSuggestButton() {
     )
 }
 
+function ListenButton() {
+    const { pending } = useFormStatus();
+    return (
+         <Button variant="outline" size="sm" type="submit" disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
+            Listen
+        </Button>
+    )
+}
+
 export default function NotePage() {
     const params = useParams();
     const router = useRouter();
@@ -59,10 +69,14 @@ export default function NotePage() {
         handleTitleChange, 
         aiTagAction, 
         aiTagState,
+        aiTtsAction,
+        aiTtsState,
         isDataLoaded 
     } = useAppContext();
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const ttsFormRef = useRef<HTMLFormElement>(null);
 
     // Directly use the note from context. This is the single source of truth.
     const activeNote = getNoteById(noteId);
@@ -73,6 +87,14 @@ export default function NotePage() {
             router.push('/');
         }
     }, [isDataLoaded, activeNote, router]);
+
+    // Handle state changes from the TTS action
+    useEffect(() => {
+        if (aiTtsState.audioData && aiTtsState.timestamp) {
+            setAudioUrl(aiTtsState.audioData);
+            ttsFormRef.current?.reset();
+        }
+    }, [aiTtsState]);
 
 
     const breadcrumbs = useMemo(() => {
@@ -135,6 +157,13 @@ export default function NotePage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        {activeNote.type !== 'calculator' && (
+                            <form action={aiTtsAction} ref={ttsFormRef}>
+                                <input type="hidden" name="noteContent" value={activeNote.content} />
+                                <input type="hidden" name="noteType" value={activeNote.type} />
+                                <ListenButton />
+                            </form>
+                        )}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive-outline" size="sm">
@@ -178,6 +207,13 @@ export default function NotePage() {
                         </DropdownMenu>
                     </div>
                 </div>
+                 {audioUrl && (
+                    <div className="w-full">
+                        <audio controls autoPlay src={audioUrl} className="w-full h-10" onEnded={() => setAudioUrl(null)}>
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                )}
             </header>
             <div className="p-4 border-b">
                  <div className="flex items-center gap-2">

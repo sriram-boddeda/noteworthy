@@ -3,6 +3,7 @@
 
 import { generateCalculatorNoteStarter } from "@/ai/flows/generate-calculator-note-starter";
 import { suggestTags } from "@/ai/flows/suggest-tags";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { z } from "zod";
 
 export type GenerateNoteState = {
@@ -83,6 +84,52 @@ export async function suggestTagsAction(prevState: SuggestTagsState, formData: F
         console.error(error);
         return {
             error: "An unexpected error occurred while suggesting tags.",
+            timestamp: Date.now()
+        };
+    }
+}
+
+export type TextToSpeechState = {
+    audioData?: string | null;
+    error?: string | null;
+    timestamp?: number;
+}
+
+export async function textToSpeechAction(prevState: TextToSpeechState, formData: FormData): Promise<TextToSpeechState> {
+    const schema = z.object({
+        noteContent: z.string(),
+        noteType: z.enum(['richtext', 'markdown', 'calculator']),
+    });
+
+    const validatedFields = schema.safeParse({
+        noteContent: formData.get('noteContent'),
+        noteType: formData.get('noteType'),
+    });
+
+    if (!validatedFields.success) {
+        return { error: "Invalid input for text-to-speech.", timestamp: Date.now() };
+    }
+
+    const { noteContent, noteType } = validatedFields.data;
+
+    if (!noteContent || noteContent.trim().length < 10) {
+        return { error: "There is not enough content to read aloud.", timestamp: Date.now() };
+    }
+    
+    // For rich text, strip HTML for better TTS.
+    const cleanContent = noteType === 'richtext' ? noteContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : noteContent;
+
+    try {
+        const result = await textToSpeech({ query: cleanContent });
+        if (result.media) {
+            return { audioData: result.media, error: null, timestamp: Date.now() };
+        }
+        return { error: "Failed to generate audio from AI.", timestamp: Date.now() };
+
+    } catch (error) {
+        console.error(error);
+        return {
+            error: "An unexpected error occurred while generating audio.",
             timestamp: Date.now()
         };
     }
