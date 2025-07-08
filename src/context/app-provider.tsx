@@ -278,13 +278,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const folder = allFolders.find(f => f.id === folderId);
     if (!folder) return;
 
-    setAllFolders(prev => prev.map(f => f.id === folderId ? { ...f, isTrashed: true } : f));
-    
+    setAllFolders(prev => prev.map(f => (f.id === folderId ? { ...f, isTrashed: true } : f)));
+
     if (deleteNotes) {
-      setAllNotes(prev => prev.map(n => n.folderId === folderId ? { ...n, isTrashed: true } : n));
+      setAllNotes(prev => prev.map(n => (n.folderId === folderId ? { ...n, isTrashed: true, lastModified: Date.now() } : n)));
       toast.success(`Moved "${folder.name}" and its notes to trash.`);
     } else {
-      toast.success(`Moved "${folder.name}" to trash.`);
+      setAllNotes(prev => prev.map(n => (n.folderId === folderId ? { ...n, folderId: null, lastModified: Date.now() } : n)));
+      toast.success(`Moved "${folder.name}" to trash.`, {
+        description: 'Notes inside were moved to Home.',
+      });
     }
   }, [allFolders]);
 
