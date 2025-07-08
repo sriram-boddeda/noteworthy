@@ -7,6 +7,7 @@ import type { Folder, Note, ActionHistory, ActionDetail } from '@/lib/data';
 import { getInitialData } from '@/lib/data';
 import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
+import type { Active, Over } from '@dnd-kit/core';
 
 interface AppContextType {
   folders: Folder[];
@@ -38,6 +39,7 @@ interface AppContextType {
   handleDeleteFolder: (folderId: string, deleteNotes: boolean) => void;
   handleRestoreFolder: (folderId: string, restoreNotes: boolean) => void;
   handlePermanentDeleteFolder: (folderId: string, deleteContainedNotes: boolean) => void;
+  handleDrop: (active: Active, over: Over | null) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -286,8 +288,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handlePermanentDeleteNote = useCallback((noteId: string) => {
     const note = allNotes.find(n => n.id === noteId);
     if(note) {
-      // Pass the full note object as entityData for potential retrieval
-      logAction('note', null, note.title, { type: 'PERMANENT_DELETE' }, note);
+      logAction('note', note.id, note.title, { type: 'PERMANENT_DELETE' }, note);
       setAllNotes(prev => prev.filter(n => n.id !== noteId));
     }
   }, [allNotes, logAction]);
@@ -300,49 +301,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const restoreItem = (item: Note | Folder, type: 'note' | 'folder') => {
-        const itemExists = type === 'note'
-            ? allNotes.some(n => n.id === item.id)
-            : allFolders.some(f => f.id === item.id);
-        
-        if (itemExists) {
-            toast.warning("Retrieval Skipped", { description: `An item named "${item.title || item.name}" with the same ID already exists.` });
-            return false;
-        }
+      const itemExists = type === 'note'
+        ? allNotes.some(n => n.id === item.id)
+        : allFolders.some(f => f.id === item.id);
 
-        const restoredItem = { ...item, isTrashed: false };
+      if (itemExists) {
+        toast.warning("Retrieval Skipped", { description: `An item named "${item.title || item.name}" with the same ID already exists.` });
+        return false;
+      }
+      
+      const restoredItem = { ...item, isTrashed: false };
 
-        if (type === 'note') {
-            setAllNotes(prev => [...prev, restoredItem as Note]);
-        } else {
-            setAllFolders(prev => [...prev, restoredItem as Folder]);
-        }
-        logAction(type, restoredItem.id, restoredItem.title || restoredItem.name, { type: 'RETRIEVE' });
-        return true;
+      if (type === 'note') {
+        setAllNotes(prev => [...prev, restoredItem as Note]);
+      } else {
+        setAllFolders(prev => [...prev, restoredItem as Folder]);
+      }
+      logAction(type, restoredItem.id, restoredItem.title || restoredItem.name, { type: 'RETRIEVE' });
+      return true;
     }
 
     const folderToRestore = historyItem.entityData as Folder;
     if (historyItem.entityType === 'folder') {
-        if (restoreItem(folderToRestore, 'folder')) {
-           let restoredNotesCount = 0;
-            if (retrieveContained && historyItem.containedEntitiesData) {
-                historyItem.containedEntitiesData.forEach(noteData => {
-                    if (restoreItem(noteData, 'note')) {
-                        restoredNotesCount++;
-                    }
-                });
+      if (restoreItem(folderToRestore, 'folder')) {
+        let restoredNotesCount = 0;
+        if (retrieveContained && historyItem.containedEntitiesData) {
+          historyItem.containedEntitiesData.forEach(noteData => {
+            if (restoreItem(noteData, 'note')) {
+              restoredNotesCount++;
             }
-            toast.success("Folder Retrieved", { 
-                description: `"${folderToRestore.name}" has been restored. ${restoredNotesCount > 0 ? `${restoredNotesCount} note(s) also restored.` : ''}`
-            });
+          });
         }
-    } else { // It's a note
-        const noteToRestore = historyItem.entityData as Note;
-        if (restoreItem(noteToRestore, 'note')) {
-            toast.success("Note Retrieved", { description: `"${noteToRestore.title}" has been restored.` });
-        }
+        toast.success("Folder Retrieved", {
+          description: `"${folderToRestore.name}" has been restored. ${restoredNotesCount > 0 ? `${restoredNotesCount} note(s) also restored.` : ''}`
+        });
+      }
+    } else {
+      const noteToRestore = historyItem.entityData as Note;
+      if (restoreItem(noteToRestore, 'note')) {
+        toast.success("Note Retrieved", { description: `"${noteToRestore.title}" has been restored.` });
+      }
     }
   }, [actionHistory, allFolders, allNotes, logAction]);
-
 
   const handleUpdateSummary = useCallback((noteId: string, summary: string | null) => {
     setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
@@ -447,22 +447,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const folder = allFolders.find(f => f.id === folderId && f.isTrashed);
     if (!folder) return;
   
-    if (deleteContainedNotes) {
-      const notesInside = allNotes.filter(n => n.folderId === folderId && n.isTrashed);
-      logAction('folder', null, folder.name, { type: 'PERMANENT_DELETE' }, folder, notesInside);
+    const notesInside = allNotes.filter(n => n.folderId === folderId && n.isTrashed);
+    logAction('folder', folder.id, folder.name, { type: 'PERMANENT_DELETE' }, folder, notesInside);
   
+    if (deleteContainedNotes) {
       const noteIdsToDelete = notesInside.map(n => n.id);
       setAllNotes(prev => prev.filter(n => !noteIdsToDelete.includes(n.id)));
       setAllFolders(prev => prev.filter(f => f.id !== folderId));
       toast.error(`Folder "${folder.name}" and ${notesInside.length} note(s) permanently deleted.`);
     } else {
-      logAction('folder', null, folder.name, { type: 'PERMANENT_DELETE' }, folder);
-  
       setAllNotes(prev => prev.map(n => n.folderId === folderId ? { ...n, folderId: null } : n));
       setAllFolders(prev => prev.filter(f => f.id !== folderId));
       toast.error(`Folder "${folder.name}" permanently deleted. Its notes remain in trash.`);
     }
   }, [allFolders, allNotes, logAction]);
+
+  const handleDrop = useCallback((active: Active, over: Over | null) => {
+    if (!over) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Prevent dropping on itself
+    if (activeId === overId) return;
+
+    const activeType = active.data.current?.type;
+    const item = active.data.current?.item;
+    
+    if (!activeType || !item) return;
+
+    if (activeType === 'note') {
+        const noteId = item.id;
+        const note = getNoteById(noteId);
+        if (!note) return;
+
+        if (overId.startsWith('folder-')) {
+            const targetFolderId = overId.replace('folder-', '');
+            if (note.folderId !== targetFolderId) {
+                handleMoveNote(noteId, targetFolderId);
+            }
+        } else if (overId === 'home-dropzone') {
+            if (note.folderId !== null) {
+                handleMoveNote(noteId, null);
+            }
+        } else if (overId === 'trash-dropzone') {
+            handleDeleteNote(noteId);
+            toast.success(`Moved "${note.title}" to Trash`, {
+                action: {
+                    label: 'Undo',
+                    onClick: () => handleUndoDelete(),
+                }
+            });
+        }
+    } else if (activeType === 'folder') {
+        const folderId = item.id;
+        if (overId === 'trash-dropzone') {
+            handleDeleteFolder(folderId, true);
+        }
+    }
+  }, [getNoteById, handleMoveNote, handleDeleteNote, handleDeleteFolder, handleUndoDelete]);
+
 
   const value = useMemo(() => ({
     folders,
@@ -494,6 +537,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDeleteFolder,
     handleRestoreFolder,
     handlePermanentDeleteFolder,
+    handleDrop,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -503,7 +547,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }), [
     folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
-    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder,
+    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

@@ -6,6 +6,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+  type Active,
+} from '@dnd-kit/core';
+import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
@@ -23,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, MoreHorizontal, Pencil, History } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -39,6 +52,45 @@ import { noteTypeOptions, type Note, type Folder as FolderType } from '@/lib/dat
 import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
+import { cn } from '@/lib/utils';
+
+
+// Reusable Draggable component
+function Draggable({ id, data, children }: { id: string, data: Record<string, any>, children: React.ReactNode }) {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data });
+    const style = {
+        // Opacity is managed by a class for better transition control
+    };
+    return (
+        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn(isDragging && 'dragging')}>
+            {children}
+        </div>
+    );
+}
+
+// Reusable Droppable component
+function Droppable({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
+    const { isOver, setNodeRef } = useDroppable({ id });
+    return (
+        <div ref={setNodeRef} className={cn(className, isOver && 'drop-indicator-folder')}>
+            {children}
+        </div>
+    );
+}
+
+// Item Preview for DragOverlay
+function ItemPreview({ item, type }: { item: Note | FolderType, type: 'note' | 'folder' }) {
+    const icon = type === 'note'
+        ? noteTypeOptions.find((o) => o.value === (item as Note).type)?.icon ?? <FileText className="size-4" />
+        : <Folder className="size-4" />;
+
+    return (
+        <div className="flex items-center gap-2 rounded-md bg-sidebar p-2 text-sidebar-foreground shadow-lg">
+            {icon}
+            <span className="text-sm font-medium">{item.name || (item as Note).title}</span>
+        </div>
+    );
+}
 
 
 export function AppSidebar() {
@@ -51,6 +103,7 @@ export function AppSidebar() {
       handleCreateNote, 
       isDataLoaded, 
       recentNotes,
+      handleDrop,
   } = useAppContext();
 
   const pathname = usePathname();
@@ -59,7 +112,13 @@ export function AppSidebar() {
   const [isNewFolderOpen, setNewFolderOpen] = useState(false);
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDragItem, setActiveDragItem] = useState<Active | null>(null);
   
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor)
+  );
+
   const rootNotes = useMemo(() => getNotesByFolderId(null), [getNotesByFolderId]);
   const folderIds = useMemo(() => folders.map(f => f.id), [folders]);
 
@@ -112,6 +171,16 @@ export function AppSidebar() {
     }
   };
 
+  const onDragStart = (event: DragStartEvent) => {
+    setActiveDragItem(event.active);
+  };
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    handleDrop(active, over);
+    setActiveDragItem(null);
+  };
+
   if (!isDataLoaded) {
     return (
       <Sidebar variant="inset" side="left" collapsible="offcanvas">
@@ -156,204 +225,221 @@ export function AppSidebar() {
   
   return (
     <>
-      <Sidebar variant="inset" side="left" collapsible="offcanvas">
-        <SidebarHeader>
-            <Link href="/" className="flex h-12 items-center gap-2 p-2">
-                <NoteworthyIcon className="size-8 text-primary shrink-0" />
-                <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">
-                Noteworthy
-                </span>
-            </Link>
-        </SidebarHeader>
-        <SidebarContent className="p-2">
-            <div className="mb-2 flex items-center justify-between px-2">
-                <h2 className="text-base font-semibold group-data-[collapsible=icon]:hidden">Workspace</h2>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8 shrink-0">
-                            <Plus className="size-4" />
-                            <span className="sr-only">New</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={() => setNewNoteOpen(true)}>
-                            <PlusCircle className="mr-2 size-4" />
-                            New Note
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setNewFolderOpen(true)}>
-                           <FolderPlus className="mr-2 size-4" />
-                            New Folder
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <Sidebar variant="inset" side="left" collapsible="offcanvas">
+            <SidebarHeader>
+                <Link href="/" className="flex h-12 items-center gap-2 p-2">
+                    <NoteworthyIcon className="size-8 text-primary shrink-0" />
+                    <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">
+                    Noteworthy
+                    </span>
+                </Link>
+            </SidebarHeader>
+            <SidebarContent className="p-2">
+                <div className="mb-2 flex items-center justify-between px-2">
+                    <h2 className="text-base font-semibold group-data-[collapsible=icon]:hidden">Workspace</h2>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8 shrink-0">
+                                <Plus className="size-4" />
+                                <span className="sr-only">New</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onSelect={() => setNewNoteOpen(true)}>
+                                <PlusCircle className="mr-2 size-4" />
+                                New Note
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setNewFolderOpen(true)}>
+                               <FolderPlus className="mr-2 size-4" />
+                                New Folder
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
 
-            <div className="relative mb-2 px-2">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Search..." 
-                    className="pl-8 h-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </div>
-          
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/'}
-                        tooltip={{ children: "Home", side: "right" }}
-                    >
-                        <Link href="/">
-                            <Home />
-                            <span>Home</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/history'}
-                        tooltip={{ children: "History", side: "right" }}
-                    >
-                        <Link href="/history">
-                            <History />
-                            <span>History</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                    <SidebarMenuButton
-                        asChild
-                        isActive={pathname === '/trash'}
-                        tooltip={{ children: "Trash", side: "right" }}
-                    >
-                        <Link href="/trash">
-                            <Trash2 />
-                            <span>Trash</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-
-            <Accordion type="single" collapsible className="w-full" defaultValue="recents">
-                <AccordionItem value="recents" className="border-none">
-                    <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-                        <div className="flex items-center gap-2">
-                            <Clock className="size-4" />
-                            <span className="group-data-[collapsible=icon]:hidden">Recent Notes</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
-                    <SidebarMenu>
-                        {recentNotes.map((note) => {
-                            const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                            return (
-                                <SidebarMenuItem key={note.id}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={pathname === `/note/${note.id}`}
-                                        tooltip={{ children: note.title, side: "right" }}
-                                        className="pl-7"
-                                    >
-                                        <Link href={`/note/${note.id}`}>
-                                            {icon}
-                                            <span>{note.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            )
-                        })}
-                         {recentNotes.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center">No recent notes.</p>}
-                    </SidebarMenu>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-
-
-            <SidebarMenu>
-                 {filteredData.rootNotes.map((note) => {
-                    const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                    return (
-                        <SidebarMenuItem key={note.id}>
+                <div className="relative mb-2 px-2">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search..." 
+                        className="pl-8 h-9"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+            
+                <SidebarMenu>
+                    <Droppable id="home-dropzone">
+                        <SidebarMenuItem>
                             <SidebarMenuButton
                                 asChild
-                                isActive={pathname === `/note/${note.id}`}
-                                tooltip={{ children: note.title, side: "right" }}
+                                isActive={pathname === '/'}
+                                tooltip={{ children: "Home", side: "right" }}
                             >
-                                <Link href={`/note/${note.id}`}>
-                                    {icon}
-                                    <span>{note.title}</span>
+                                <Link href="/">
+                                    <Home />
+                                    <span>Home</span>
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
-                    )
-                 })}
-            </SidebarMenu>
+                    </Droppable>
+                     <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname === '/history'}
+                            tooltip={{ children: "History", side: "right" }}
+                        >
+                            <Link href="/history">
+                                <History />
+                                <span>History</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                     <Droppable id="trash-dropzone">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                asChild
+                                isActive={pathname === '/trash'}
+                                tooltip={{ children: "Trash", side: "right" }}
+                            >
+                                <Link href="/trash">
+                                    <Trash2 />
+                                    <span>Trash</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </Droppable>
+                </SidebarMenu>
+
+                <Accordion type="single" collapsible className="w-full" defaultValue="recents">
+                    <AccordionItem value="recents" className="border-none">
+                        <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                            <div className="flex items-center gap-2">
+                                <Clock className="size-4" />
+                                <span className="group-data-[collapsible=icon]:hidden">Recent Notes</span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
+                        <SidebarMenu>
+                            {recentNotes.map((note) => (
+                                <SidebarMenuItem key={note.id}>
+                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={pathname === `/note/${note.id}`}
+                                            tooltip={{ children: note.title, side: "right" }}
+                                            className="pl-7"
+                                        >
+                                            <Link href={`/note/${note.id}`}>
+                                                {noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />}
+                                                <span>{note.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </Draggable>
+                                </SidebarMenuItem>
+                            ))}
+                             {recentNotes.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center">No recent notes.</p>}
+                        </SidebarMenu>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+
+                <Droppable id="home-dropzone">
+                    <SidebarMenu>
+                         {filteredData.rootNotes.map((note) => {
+                            const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                            return (
+                                <SidebarMenuItem key={note.id}>
+                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={pathname === `/note/${note.id}`}
+                                            tooltip={{ children: note.title, side: "right" }}
+                                        >
+                                            <Link href={`/note/${note.id}`}>
+                                                {icon}
+                                                <span>{note.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </Draggable>
+                                </SidebarMenuItem>
+                            )
+                         })}
+                    </SidebarMenu>
+                </Droppable>
 
 
-          <Accordion type="multiple" defaultValue={folderIds} className="w-full">
-            {filteredData.folders.map((folder) => (
-              <AccordionItem value={folder.id} key={folder.id} className="border-none relative group/folder-item">
-                <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-                    <Link href={`/folder/${folder.id}`} className="flex items-center gap-2 flex-grow min-w-0" onClick={(e) => e.stopPropagation()}>
-                        <Folder className="size-4" />
-                        <span className="group-data-[collapsible=icon]:hidden truncate">{folder.name}</span>
-                    </Link>
-                </AccordionTrigger>
-                <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
-                  <SidebarMenu>
-                    {folder.notes.map((note) => {
-                       const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                       return (
-                         <SidebarMenuItem key={note.id}>
-                             <SidebarMenuButton
-                               asChild
-                               isActive={pathname === `/note/${note.id}`}
-                               tooltip={{ children: note.title, side: "right" }}
-                               className="pl-7"
-                             >
-                               <Link href={`/note/${note.id}`}>
-                                   {icon}
-                                   <span>{note.title}</span>
-                               </Link>
-                           </SidebarMenuButton>
-                         </SidebarMenuItem>
-                       )
-                    })}
-                  </SidebarMenu>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-          <div className="px-2 mt-4">
-              <h2 className="text-base font-semibold mb-2 group-data-[collapsible=icon]:hidden">Tags</h2>
-              <div className="flex flex-wrap gap-1.5 group-data-[collapsible=icon]:hidden">
-                  {uniqueTags.map(tag => (
-                      <Link href={`/tag/${tag}`} key={tag}>
-                        <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
-                      </Link>
-                  ))}
+              <Accordion type="multiple" defaultValue={folderIds} className="w-full">
+                {filteredData.folders.map((folder) => (
+                  <Droppable key={folder.id} id={`folder-${folder.id}`}>
+                    <AccordionItem value={folder.id} className="border-none relative group/folder-item">
+                       <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
+                          <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                              <Link href={`/folder/${folder.id}`} className="flex items-center gap-2 flex-grow min-w-0" onClick={(e) => e.stopPropagation()}>
+                                  <Folder className="size-4" />
+                                  <span className="group-data-[collapsible=icon]:hidden truncate">{folder.name}</span>
+                              </Link>
+                          </AccordionTrigger>
+                      </Draggable>
+                      <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
+                        <SidebarMenu>
+                          {folder.notes.map((note) => {
+                             const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                             return (
+                               <SidebarMenuItem key={note.id}>
+                                  <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
+                                    <SidebarMenuButton
+                                     asChild
+                                     isActive={pathname === `/note/${note.id}`}
+                                     tooltip={{ children: note.title, side: "right" }}
+                                     className="pl-7"
+                                   >
+                                     <Link href={`/note/${note.id}`}>
+                                         {icon}
+                                         <span>{note.title}</span>
+                                     </Link>
+                                 </SidebarMenuButton>
+                                 </Draggable>
+                               </SidebarMenuItem>
+                             )
+                          })}
+                        </SidebarMenu>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Droppable>
+                ))}
+              </Accordion>
+              <div className="px-2 mt-4">
+                  <h2 className="text-base font-semibold mb-2 group-data-[collapsible=icon]:hidden">Tags</h2>
+                  <div className="flex flex-wrap gap-1.5 group-data-[collapsible=icon]:hidden">
+                      {uniqueTags.map(tag => (
+                          <Link href={`/tag/${tag}`} key={tag}>
+                            <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
+                          </Link>
+                      ))}
+                  </div>
               </div>
-          </div>
-        </SidebarContent>
-        <SidebarFooter>
-            <div className="flex h-14 items-center justify-between gap-2 p-2">
-                <div className="flex items-center gap-2 overflow-hidden">
-                    <Avatar className="size-8 shrink-0">
-                        <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
-                        <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                        <span className="text-sm font-medium">User</span>
-                        <span className="text-xs text-muted-foreground">user@example.com</span>
+            </SidebarContent>
+            <SidebarFooter>
+                <div className="flex h-14 items-center justify-between gap-2 p-2">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        <Avatar className="size-8 shrink-0">
+                            <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
+                            <AvatarFallback>U</AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                            <span className="text-sm font-medium">User</span>
+                            <span className="text-xs text-muted-foreground">user@example.com</span>
+                        </div>
                     </div>
+                    <ThemeToggle />
                 </div>
-                <ThemeToggle />
-            </div>
-        </SidebarFooter>
-      </Sidebar>
+            </SidebarFooter>
+        </Sidebar>
+        <DragOverlay className="drag-overlay">
+            {activeDragItem ? <ItemPreview item={activeDragItem.data.current?.item} type={activeDragItem.data.current?.type} /> : null}
+        </DragOverlay>
+      </DndContext>
 
       <Dialog open={isNewFolderOpen} onOpenChange={setNewFolderOpen}>
         <DialogContent>
