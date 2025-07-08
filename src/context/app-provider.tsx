@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Folder, Note } from '@/lib/data';
 import { getInitialData } from '@/lib/data';
@@ -43,7 +43,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
-  const [lastDeletedNote, setLastDeletedNote] = useState<Note | null>(null);
+  const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [aiTagState, aiTagAction] = React.useActionState<SuggestTagsState, FormData>(suggestTagsAction, { suggestedTags: [], error: null });
@@ -189,20 +189,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleDeleteNote = useCallback((noteId: string) => {
-    const noteToDelete = allNotes.find(n => n.id === noteId);
-    if(noteToDelete) {
-        setLastDeletedNote(noteToDelete); // For quick undo
-        setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: true, lastModified: Date.now() } : n));
+    let noteToDelete: Note | undefined;
+    setAllNotes(prev => {
+        noteToDelete = prev.find(n => n.id === noteId);
+        return prev.map(n => n.id === noteId ? { ...n, isTrashed: true, lastModified: Date.now() } : n)
+    });
+
+    if (noteToDelete) {
+        lastDeletedNote.current = noteToDelete;
     }
-  }, [allNotes]);
+  }, []);
 
   const handleUndoDelete = useCallback(() => {
-    if (lastDeletedNote) {
-      setAllNotes(prev => prev.map(n => n.id === lastDeletedNote.id ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
-      toast.success(`Restored "${lastDeletedNote.title}"`);
-      setLastDeletedNote(null);
+    const noteToRestore = lastDeletedNote.current;
+    if (noteToRestore) {
+      setAllNotes(prev => prev.map(n => n.id === noteToRestore.id ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
+      toast.success(`Restored "${noteToRestore.title}"`);
+      lastDeletedNote.current = null;
     }
-  }, [lastDeletedNote]);
+  }, []);
   
   const handleRestoreNote = useCallback((noteId: string) => {
       setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: false, lastModified: Date.now() } : n));
