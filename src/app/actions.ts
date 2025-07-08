@@ -1,0 +1,89 @@
+
+'use server';
+
+import { generateCalculatorNoteStarter } from "@/ai/flows/generate-calculator-note-starter";
+import { suggestTags } from "@/ai/flows/suggest-tags";
+import { z } from "zod";
+
+export type GenerateNoteState = {
+    starterTemplate?: string;
+    error?: string | null;
+}
+
+export async function generateNoteAction(prevState: GenerateNoteState, formData: FormData): Promise<GenerateNoteState> {
+    const schema = z.object({
+        prompt: z.string().min(1, { message: "Prompt cannot be empty." }),
+    });
+
+    const validatedFields = schema.safeParse({
+        prompt: formData.get('prompt'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            error: validatedFields.error.flatten().fieldErrors.prompt?.join(", "),
+        };
+    }
+
+    try {
+        const result = await generateCalculatorNoteStarter({ prompt: validatedFields.data.prompt });
+        if (result.starterTemplate) {
+            return { starterTemplate: result.starterTemplate, error: null };
+        }
+        return { error: "Failed to generate content from AI.", starterTemplate: "" };
+
+    } catch (error) {
+        console.error(error);
+        return {
+            error: "An unexpected error occurred. Please try again.",
+        };
+    }
+}
+
+
+export type SuggestTagsState = {
+    suggestedTags?: string[];
+    error?: string | null;
+    timestamp?: number;
+}
+
+export async function suggestTagsAction(prevState: SuggestTagsState, formData: FormData): Promise<SuggestTagsState> {
+    const schema = z.object({
+        noteContent: z.string(),
+        existingTags: z.string(), // Will be a comma-separated string from a hidden input
+    });
+
+    const validatedFields = schema.safeParse({
+        noteContent: formData.get('noteContent'),
+        existingTags: formData.get('existingTags'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            error: "Invalid input for tag suggestion.",
+        };
+    }
+    
+    if (!validatedFields.data.noteContent) {
+        return { suggestedTags: [] }; // Don't run for empty notes
+    }
+
+    try {
+        const existingTags = validatedFields.data.existingTags.split(',').filter(Boolean).map(t => t.toLowerCase());
+        const result = await suggestTags({ noteContent: validatedFields.data.noteContent, existingTags });
+        
+        if (result.suggestedTags) {
+            // Filter out any tags that might already exist, just in case
+            const newSuggestions = result.suggestedTags.filter(tag => !existingTags.includes(tag.toLowerCase()));
+            return { suggestedTags: newSuggestions, error: null, timestamp: Date.now() };
+        }
+        return { error: "Failed to generate tags from AI.", suggestedTags: [], timestamp: Date.now() };
+
+    } catch (error) {
+        console.error(error);
+        return {
+            error: "An unexpected error occurred while suggesting tags.",
+            timestamp: Date.now()
+        };
+    }
+}
