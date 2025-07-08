@@ -237,7 +237,7 @@ export function AppSidebar() {
 
   if (!isDataLoaded) {
     return (
-      <Sidebar variant="inset" side="left" collapsible="offcanvas">
+      <Sidebar variant="offcanvas" side="left" collapsible="offcanvas">
         <SidebarHeader>
           <Link href="/" className="flex h-12 items-center gap-2 p-2">
             <NoteworthyIcon className="size-8 text-primary shrink-0" />
@@ -280,7 +280,7 @@ export function AppSidebar() {
   return (
     <>
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <Sidebar variant="inset" side="left" collapsible="offcanvas">
+        <Sidebar variant="offcanvas" side="left" collapsible="offcanvas">
             <SidebarHeader>
                 <Link href="/" className="flex h-12 items-center gap-2 p-2">
                     <NoteworthyIcon className="size-8 text-primary shrink-0" />
@@ -562,5 +562,3 @@ export function AppSidebar() {
     </>
   );
 }
-
-    
