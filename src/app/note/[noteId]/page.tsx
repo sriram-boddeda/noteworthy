@@ -381,19 +381,20 @@ export default function NotePage() {
 
     return (
         <div className="flex h-full flex-col">
-            <header className="sticky top-0 z-10 flex flex-col gap-3 border-b bg-background p-4">
-                <div className="flex w-full items-start justify-between gap-4">
-                    <div className="flex-1 space-y-1">
+            <header className="sticky top-0 z-10 flex flex-col gap-4 border-b bg-background p-4">
+                {/* Main responsive row for title and actions */}
+                <div className="flex w-full flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                    <div className="flex-1 space-y-1 min-w-0">
                         <Breadcrumbs items={breadcrumbs} />
                         <Input 
                             value={activeNote.title} 
                             onChange={onTitleChange}
                             placeholder="Untitled Note"
-                            className="h-auto w-full border-none bg-transparent p-0 font-headline text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-3xl"
+                            className="h-auto w-full truncate border-none bg-transparent p-0 font-headline text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-3xl"
                         />
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end">
                         {activeNote.type !== 'calculator' && (
                             <>
                                 <form action={aiSummaryAction}>
@@ -447,7 +448,8 @@ export default function NotePage() {
                     </div>
                 </div>
 
-                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+                {/* Metadata and delete action row */}
+                <div className="flex w-full flex-col items-start justify-between gap-4 text-sm sm:flex-row sm:items-center">
                     <div className="flex flex-wrap items-center gap-2">
                         {activeNote.tags.map(tag => (
                             <Badge key={tag} variant="secondary" className="cursor-default">
@@ -494,7 +496,7 @@ export default function NotePage() {
                             </PopoverContent>
                         </Popover>
                     </div>
-                     <div className="flex items-center gap-4">
+                     <div className="flex flex-shrink-0 items-center gap-4">
                         <p className="text-muted-foreground">Last updated {lastModifiedText}</p>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
