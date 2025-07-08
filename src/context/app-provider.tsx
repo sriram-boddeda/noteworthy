@@ -309,12 +309,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return false;
         }
 
+        const restoredItem = { ...item, isTrashed: false };
+
         if (type === 'note') {
-            setAllNotes(prev => [...prev, item as Note]);
+            setAllNotes(prev => [...prev, restoredItem as Note]);
         } else {
-            setAllFolders(prev => [...prev, item as Folder]);
+            setAllFolders(prev => [...prev, restoredItem as Folder]);
         }
-        logAction(type, item.id, item.title || item.name, { type: 'RETRIEVE' });
+        logAction(type, restoredItem.id, restoredItem.title || restoredItem.name, { type: 'RETRIEVE' });
         return true;
     }
 
@@ -414,7 +416,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         description: 'Notes inside were moved to Home.',
       });
     }
-  }, [allFolders, logAction]);
+  }, [allFolders, allNotes, logAction]);
 
   const handleRestoreFolder = useCallback((folderId: string, restoreNotes: boolean) => {
     const folder = allFolders.find(f => f.id === folderId);
