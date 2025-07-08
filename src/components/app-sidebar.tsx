@@ -114,7 +114,7 @@ export function AppSidebar() {
 
   if (!isDataLoaded) {
     return (
-      <Sidebar variant="inset" side="left" collapsible="icon">
+      <Sidebar variant="inset" side="left" collapsible="offcanvas">
         <SidebarHeader>
           <Link href="/" className="flex h-12 items-center gap-2 p-2">
             <NoteworthyIcon className="size-8 text-primary shrink-0" />
@@ -156,7 +156,7 @@ export function AppSidebar() {
   
   return (
     <>
-      <Sidebar variant="inset" side="left" collapsible="icon">
+      <Sidebar variant="inset" side="left" collapsible="offcanvas">
         <SidebarHeader>
             <Link href="/" className="flex h-12 items-center gap-2 p-2">
                 <NoteworthyIcon className="size-8 text-primary shrink-0" />
