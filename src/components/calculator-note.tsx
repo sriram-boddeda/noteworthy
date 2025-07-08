@@ -131,14 +131,14 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
           <Separator orientation="horizontal" className="md:hidden" />
           <Separator orientation="vertical" className="hidden md:block" />
           {/* Right Panel: Output/Results */}
-          <div className="w-full md:w-1/4 p-6 bg-muted/20 font-mono text-sm overflow-auto">
+          <div className="w-full md:w-1/4 p-4 bg-muted/20 font-mono text-sm overflow-auto">
             {/* Variables Section */}
             <div className="mb-6">
-              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2 text-foreground/80">Variables</h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+              <h3 className="font-headline font-semibold text-base mb-2 border-b pb-2 text-foreground/80">Variables</h3>
+              <div className="space-y-1 max-h-48 overflow-y-auto pr-2">
                 {variables.size > 0 ? (
                   Array.from(variables.entries()).map(([name, value]) => (
-                    <div key={name} className="flex justify-between items-baseline text-xs p-2 rounded-md bg-background/50">
+                    <div key={name} className="flex justify-between items-baseline text-xs p-1.5 rounded-md bg-background/50">
                       <code className="text-muted-foreground">{name}</code>
                       <span className="font-mono font-semibold text-primary">{value.toLocaleString()}</span>
                     </div>
@@ -153,7 +153,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
 
             {/* Results Section */}
             <div>
-              <h3 className="font-headline font-semibold text-lg mb-3 border-b pb-2 text-foreground/80">Live Output</h3>
+              <h3 className="font-headline font-semibold text-base mb-2 border-b pb-2 text-foreground/80">Live Output</h3>
               <div className="space-y-1">
                 {outputLines.length > 0 ? (
                   outputLines.map(({ line, index, result }) => {
@@ -162,11 +162,11 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                     return (
                       <div
                         key={index}
-                        className="flex justify-between items-center p-2.5 rounded-md transition-colors hover:bg-background/50 group"
+                        className="flex justify-between items-center p-2 rounded-md transition-colors hover:bg-background/50 group"
                       >
-                        <div className="flex items-center gap-x-4">
+                        <div className="flex items-center gap-x-3">
                            <span className="w-5 text-right font-mono text-xs text-muted-foreground select-none">{index + 1}</span>
-                           <code className="text-muted-foreground text-sm" title={line}>
+                           <code className="text-muted-foreground text-xs" title={line}>
                             {line.trim() || <span className="text-muted-foreground/50 italic">empty line</span>}
                           </code>
                         </div>
@@ -176,7 +176,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                               {result.error}
                             </span>
                         ) : (
-                          <span className="font-mono font-bold text-accent text-right text-lg">
+                          <span className="font-mono font-bold text-accent text-right text-base">
                             = {result.value?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                           </span>
                         )}
