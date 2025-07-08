@@ -383,7 +383,7 @@ export default function NotePage() {
         <div className="flex h-full flex-col">
             <header className="sticky top-0 z-10 flex flex-col gap-4 border-b bg-background p-4">
                 {/* Main responsive row for title and actions */}
-                <div className="flex w-full flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+                <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2">
                     <div className="flex-1 space-y-1 min-w-0">
                         <Breadcrumbs items={breadcrumbs} />
                         <Input 
@@ -394,7 +394,7 @@ export default function NotePage() {
                         />
                     </div>
 
-                    <div className="flex w-full flex-wrap items-center justify-start gap-2 md:w-auto md:justify-end">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         {activeNote.type !== 'calculator' && (
                             <>
                                 <form action={aiSummaryAction}>
