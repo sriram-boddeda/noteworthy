@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
 import type { Folder } from '@/lib/data';
-import { Button } from './ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,12 +100,15 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button variant="outline" onClick={() => onRestoreConfirm(false)}>
+            <AlertDialogAction
+              className={buttonVariants({ variant: 'outline' })}
+              onClick={() => onRestoreConfirm(false)}
+            >
               Restore Folder Only
-            </Button>
+            </AlertDialogAction>
             <AlertDialogAction onClick={() => onRestoreConfirm(true)}>
               Restore Folder and Notes
-            </Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
