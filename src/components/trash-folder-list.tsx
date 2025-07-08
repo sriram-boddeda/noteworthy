@@ -54,8 +54,8 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
         {folders.map((folder) => (
           <Card key={folder.id} className="flex flex-col">
             <CardHeader className="flex-grow">
-              <CardTitle className="flex items-center gap-2">
-                <FolderIcon className="size-5" /> {folder.name}
+              <CardTitle className="flex items-baseline gap-2">
+                <FolderIcon className="size-5" /> <span>{folder.name}</span>
               </CardTitle>
             </CardHeader>
             <CardFooter className="flex justify-end flex-wrap gap-2">

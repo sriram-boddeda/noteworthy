@@ -44,8 +44,8 @@ export function TrashList({ notes }: TrashListProps) {
         return (
           <Card key={note.id} className="flex flex-col">
             <CardHeader className="flex-grow">
-              <CardTitle className="flex items-center gap-2">
-                {icon} {note.title}
+              <CardTitle className="flex items-baseline gap-2">
+                {icon} <span>{note.title}</span>
               </CardTitle>
               <CardDescription className="line-clamp-3 pt-2">
                 {note.content.replace(/<[^>]*>?/gm, ' ').substring(0, 150)}...
