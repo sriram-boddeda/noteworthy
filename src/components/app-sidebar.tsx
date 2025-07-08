@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, MoreHorizontal, Pencil, History } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -214,6 +214,18 @@ export function AppSidebar() {
                  <SidebarMenuItem>
                     <SidebarMenuButton
                         asChild
+                        isActive={pathname === '/history'}
+                        tooltip={{ children: "History", side: "right" }}
+                    >
+                        <Link href="/history">
+                            <History />
+                            <span>History</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton
+                        asChild
                         isActive={pathname === '/trash'}
                         tooltip={{ children: "Trash", side: "right" }}
                     >
@@ -229,8 +241,8 @@ export function AppSidebar() {
                 <AccordionItem value="recents" className="border-none">
                     <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
                         <div className="flex items-center gap-2">
-                            <History className="size-4" />
-                            <span className="group-data-[collapsible=icon]:hidden">Recent</span>
+                            <Clock className="size-4" />
+                            <span className="group-data-[collapsible=icon]:hidden">Recent Notes</span>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">

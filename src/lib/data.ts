@@ -20,6 +20,25 @@ export interface Folder {
   isTrashed?: boolean;
 }
 
+export type ActionDetail =
+  | { type: 'CREATE'; destination?: string }
+  | { type: 'RENAME'; from: string; to: string }
+  | { type: 'DELETE' }
+  | { type: 'RESTORE'; from?: string }
+  | { type: 'PERMANENT_DELETE' }
+  | { type: 'MOVE'; from: string; to: string }
+  | { type: 'COPY'; destination: string };
+
+export interface ActionHistory {
+  id: string;
+  timestamp: number;
+  entityType: 'note' | 'folder';
+  entityId: string | null;
+  entityName: string;
+  action: ActionDetail;
+}
+
+
 export const noteTypeOptions = [
     { value: 'richtext', label: 'Rich Text Note', icon: React.createElement(FileText, { className: "size-4 shrink-0" }) },
     { value: 'markdown', label: 'Markdown Note', icon: React.createElement(FileType, { className: "size-4 shrink-0" }) },
