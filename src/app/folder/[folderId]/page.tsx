@@ -7,6 +7,7 @@ import { useAppContext } from '@/context/app-provider';
 import { Folder } from 'lucide-react';
 import { useMemo } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function FolderPage() {
   const params = useParams();
@@ -35,7 +36,10 @@ export default function FolderPage() {
   return (
     <div>
       <header className="sticky top-0 z-10 flex flex-col items-start gap-4 border-b bg-background p-3">
-          <Breadcrumbs items={breadcrumbs} />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
           <div className="flex items-center gap-2">
             <Folder className="size-6 text-muted-foreground" />
             <div>

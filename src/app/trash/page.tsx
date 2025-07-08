@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs';
 import { TrashList } from '@/components/trash-list';
 import { useAppContext } from '@/context/app-provider';
 import { Trash2 } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function TrashPage() {
   const { trashedNotes } = useAppContext();
@@ -20,7 +21,10 @@ export default function TrashPage() {
   return (
     <div>
       <header className="sticky top-0 z-10 flex flex-col items-start gap-4 border-b bg-background p-3">
-          <Breadcrumbs items={breadcrumbs} />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
           <div className="flex items-center gap-2">
             <Trash2 className="size-6 text-muted-foreground" />
             <div>

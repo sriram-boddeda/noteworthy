@@ -4,6 +4,7 @@
 import { NoteList } from '@/components/note-list';
 import { useAppContext } from '@/context/app-provider';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function Home() {
   const { notes: allNotes } = useAppContext();
@@ -12,7 +13,10 @@ export default function Home() {
   return (
     <div>
       <header className="sticky top-0 z-10 flex flex-col items-start gap-4 border-b bg-background p-3">
-          <Breadcrumbs items={breadcrumbs} />
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Breadcrumbs items={breadcrumbs} />
+          </div>
           <div className="flex items-center gap-2">
             <div>
               <h2 className="font-headline text-xl font-semibold">All Notes</h2>

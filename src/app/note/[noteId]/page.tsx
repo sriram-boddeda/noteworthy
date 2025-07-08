@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { formatDistanceToNow } from 'date-fns';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 
 const noteComponentMap = {
@@ -385,7 +386,10 @@ export default function NotePage() {
                  {/* Row 1: Title & Last Updated */}
                 <div className="flex w-full flex-wrap items-start justify-between gap-x-4 gap-y-2">
                     <div className="flex-1 space-y-1 min-w-0">
-                        <Breadcrumbs items={breadcrumbs} />
+                        <div className="flex items-center gap-2">
+                            <SidebarTrigger />
+                            <Breadcrumbs items={breadcrumbs} />
+                        </div>
                         <Input 
                             value={activeNote.title} 
                             onChange={onTitleChange}
