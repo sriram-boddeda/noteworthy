@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { Calculator, FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, History, Search } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -41,15 +41,43 @@ import { Skeleton } from './ui/skeleton';
 
 
 export function AppSidebar() {
-  const { folders, getNotesByFolderId, uniqueTags, handleCreateFolder, handleCreateNote, isDataLoaded } = useAppContext();
+  const { folders, notes, getNotesByFolderId, uniqueTags, handleCreateFolder, handleCreateNote, isDataLoaded, recentNotes } = useAppContext();
   const pathname = usePathname();
   const router = useRouter();
 
   const [isNewFolderOpen, setNewFolderOpen] = useState(false);
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
-  const rootNotes = getNotesByFolderId(null);
+  const rootNotes = useMemo(() => getNotesByFolderId(null), [getNotesByFolderId]);
   const folderIds = useMemo(() => folders.map(f => f.id), [folders]);
+
+  const filteredData = useMemo(() => {
+    const lowerCaseQuery = searchQuery.toLowerCase();
+
+    if (!searchQuery) {
+        return {
+            folders: folders.map(folder => ({
+                ...folder,
+                notes: notes.filter(n => n.folderId === folder.id).sort((a,b) => a.title.localeCompare(b.title)),
+            })),
+            rootNotes: notes.filter(n => !n.folderId).sort((a,b) => a.title.localeCompare(b.title)),
+        };
+    }
+
+    const filteredNotes = notes.filter(n => n.title.toLowerCase().includes(lowerCaseQuery));
+    const filteredRootNotes = filteredNotes.filter(n => !n.folderId);
+    
+    const filteredFolders = folders.map(folder => ({
+        ...folder,
+        notes: filteredNotes.filter(n => n.folderId === folder.id),
+    })).filter(folder => 
+        folder.name.toLowerCase().includes(lowerCaseQuery) || folder.notes.length > 0
+    );
+
+    return { folders: filteredFolders, rootNotes: filteredRootNotes };
+
+  }, [searchQuery, notes, folders]);
 
   const handleCreateFolderSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -148,6 +176,16 @@ export function AppSidebar() {
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
+            <div className="relative mb-2 px-2">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search..." 
+                    className="pl-8 h-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
           
             <SidebarMenu>
                 <SidebarMenuItem>
@@ -162,7 +200,44 @@ export function AppSidebar() {
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
-                 {rootNotes.map((note) => {
+            </SidebarMenu>
+
+            <Accordion type="single" collapsible className="w-full" defaultValue="recents">
+                <AccordionItem value="recents" className="border-none">
+                    <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md hover:no-underline [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                        <div className="flex items-center gap-2">
+                            <History className="size-4" />
+                            <span className="group-data-[collapsible=icon]:hidden">Recent</span>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
+                    <SidebarMenu>
+                        {recentNotes.map((note) => {
+                            const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                            return (
+                                <SidebarMenuItem key={note.id}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={pathname === `/note/${note.id}`}
+                                        tooltip={{ children: note.title, side: "right" }}
+                                    >
+                                        <Link href={`/note/${note.id}`}>
+                                            {icon}
+                                            <span>{note.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )
+                        })}
+                         {recentNotes.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center">No recent notes.</p>}
+                    </SidebarMenu>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+
+
+            <SidebarMenu>
+                 {filteredData.rootNotes.map((note) => {
                     const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
                     return (
                         <SidebarMenuItem key={note.id}>
@@ -183,7 +258,7 @@ export function AppSidebar() {
 
 
           <Accordion type="multiple" defaultValue={folderIds} className="w-full">
-            {folders.map((folder) => (
+            {filteredData.folders.map((folder) => (
               <AccordionItem value={folder.id} key={folder.id} className="border-none">
                 <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
                     <Link href={`/folder/${folder.id}`} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -193,7 +268,7 @@ export function AppSidebar() {
                 </AccordionTrigger>
                 <AccordionContent className="pt-1 group-data-[collapsible=icon]:hidden">
                   <SidebarMenu>
-                    {getNotesByFolderId(folder.id).map((note) => {
+                    {folder.notes.map((note) => {
                        const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
                        return (
                          <SidebarMenuItem key={note.id}>

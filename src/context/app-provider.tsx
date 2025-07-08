@@ -16,6 +16,7 @@ interface AppContextType {
   getNotesByFolderId: (folderId: string | null) => Note[];
   getNotesByTag: (tag: string) => Note[];
   uniqueTags: string[];
+  recentNotes: Note[];
   handleCreateFolder: (folderName: string) => void;
   handleCreateNote: (title: string, type: Note['type'], folderId: string | null) => Note | null;
   handleContentChange: (noteId: string, newContent: string) => void;
@@ -126,6 +127,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const allTags = notes.flatMap(note => note.tags);
     return [...new Set(allTags)].sort();
   }, [notes]);
+  
+  const recentNotes = useMemo(() => {
+    return [...notes].sort((a, b) => b.lastModified - a.lastModified).slice(0, 5);
+  }, [notes]);
 
   const getNoteById = useCallback((id: string) => {
     return notes.find(note => note.id === id);
@@ -160,6 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             content: `# ${title}\n\nStart writing here...`,
             folderId: folderId,
             summary: null,
+            lastModified: Date.now(),
         };
         setNotes(prev => [...prev, newNote]);
         toast({ title: 'Note Created', description: `Successfully created "${title}".` });
@@ -169,16 +175,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [toast]);
 
   const handleContentChange = useCallback((noteId: string, newContent: string) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent } : n));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, lastModified: Date.now() } : n));
   }, []);
 
   const handleTitleChange = useCallback((noteId: string, newTitle: string) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: newTitle } : n));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, title: newTitle, lastModified: Date.now() } : n));
   }, []);
   
   const handleUpdateTags = useCallback((noteId: string, newTags: string[]) => {
     const updatedTags = [...new Set(newTags)].filter(Boolean).map(t => t.trim().toLowerCase());
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, tags: updatedTags } : n));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, tags: updatedTags, lastModified: Date.now() } : n));
   }, []);
 
   const handleDeleteNote = useCallback((noteId: string) => {
@@ -187,7 +193,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [toast]);
 
   const handleUpdateSummary = useCallback((noteId: string, summary: string | null) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary } : n));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, lastModified: Date.now() } : n));
   }, []);
 
   const value = useMemo(() => ({
@@ -198,6 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     getNotesByFolderId,
     getNotesByTag,
     uniqueTags,
+    recentNotes,
     handleCreateFolder,
     handleCreateNote,
     handleContentChange,
@@ -212,7 +219,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags,
+    folders, notes, isDataLoaded, getNoteById, getNotesByFolderId, getNotesByTag, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleTitleChange, handleUpdateSummary,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
