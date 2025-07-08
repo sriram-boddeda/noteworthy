@@ -27,6 +27,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { marked } from 'marked';
+import { useToast } from '@/hooks/use-toast';
 
 
 const noteComponentMap = {
@@ -59,6 +61,7 @@ export default function NotePage() {
     const params = useParams();
     const router = useRouter();
     const noteId = params.noteId as string;
+    const { toast } = useToast();
     
     const { 
         folders, 
@@ -131,6 +134,70 @@ export default function NotePage() {
         router.push('/');
     }
 
+    const handleExport = async (format: 'html' | 'pdf' | 'docx') => {
+        if (!activeNote) return;
+
+        if (format === 'pdf' || format === 'docx') {
+            toast({
+                title: "Feature not available",
+                description: `Exporting to ${format.toUpperCase()} is not yet supported.`,
+            });
+            return;
+        }
+
+        if (format === 'html') {
+            let htmlBody = '';
+
+            if (activeNote.type === 'richtext') {
+                htmlBody = activeNote.content;
+            } else if (activeNote.type === 'markdown') {
+                htmlBody = await marked.parse(activeNote.content);
+            } else { // calculator
+                htmlBody = `<pre style="font-family: monospace; white-space: pre-wrap;">${activeNote.content}</pre>`;
+            }
+
+            const fullHtml = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${activeNote.title}</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+                        h1, h2, h3, h4, h5, h6 { color: #111; }
+                        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; }
+                        code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+                        th, td { border: 1px solid #dfe2e5; padding: .75rem; }
+                        th { font-weight: 600; }
+                        blockquote { color: #6a737d; border-left: .25em solid #dfe2e5; padding: 0 1em; margin-left: 0; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${activeNote.title}</h1>
+                    <hr>
+                    ${htmlBody}
+                </body>
+                </html>`;
+
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${activeNote.title.replace(/[/\\?%*:|"<>]/g, '-')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast({
+                title: "Export Successful",
+                description: `"${activeNote.title}" has been downloaded as an HTML file.`,
+            });
+        }
+    };
+
     const ActiveNoteComponent = activeNote ? noteComponentMap[activeNote.type] : null;
 
     // Show a loader while data is loading from localStorage or if the note doesn't exist yet.
@@ -200,9 +267,9 @@ export default function NotePage() {
                         <DropdownMenuContent>
                             <DropdownMenuLabel>Export as</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>PDF</DropdownMenuItem>
-                            <DropdownMenuItem>DOCX</DropdownMenuItem>
-                            <DropdownMenuItem>HTML</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleExport('pdf')}>PDF</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleExport('docx')}>DOCX</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleExport('html')}>HTML</DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
