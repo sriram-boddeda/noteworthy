@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import { useAppContext } from '@/context/app-provider';
@@ -29,6 +29,8 @@ import {
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { marked } from 'marked';
 import { useToast } from '@/hooks/use-toast';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 const noteComponentMap = {
@@ -82,7 +84,7 @@ export default function NotePage() {
     const ttsFormRef = useRef<HTMLFormElement>(null);
 
     // Directly use the note from context. This is the single source of truth.
-    const activeNote = getNoteById(noteId);
+    const activeNote = useMemo(() => getNoteById(noteId), [getNoteById, noteId]);
 
     // Redirect if note is not found after data has finished loading.
     useEffect(() => {
@@ -113,74 +115,76 @@ export default function NotePage() {
         return crumbs;
     }, [activeNote, folders]);
 
-    const onContentChange = (newContent: string) => {
+    const onContentChange = useCallback((newContent: string) => {
         if (!activeNote) return;
         handleContentChange(activeNote.id, newContent);
-    };
+    }, [activeNote, handleContentChange]);
     
-    const onUpdateTags = (newTags: string[]) => {
+    const onUpdateTags = useCallback((newTags: string[]) => {
         if (!activeNote) return;
         handleUpdateTags(activeNote.id, newTags);
-    }
+    }, [activeNote, handleUpdateTags]);
     
-    const onTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const onTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!activeNote) return;
         handleTitleChange(activeNote.id, e.target.value);
-    }
+    }, [activeNote, handleTitleChange]);
 
-    const onDelete = () => {
+    const onDelete = useCallback(() => {
         if (!activeNote) return;
         handleDeleteNote(activeNote.id);
         router.push('/');
-    }
+    }, [activeNote, handleDeleteNote, router]);
 
-    const handleExport = async (format: 'html' | 'pdf' | 'docx') => {
+    const handleExport = useCallback(async (format: 'html' | 'pdf' | 'docx') => {
         if (!activeNote) return;
 
-        if (format === 'pdf' || format === 'docx') {
+        if (format === 'docx') {
             toast({
                 title: "Feature not available",
-                description: `Exporting to ${format.toUpperCase()} is not yet supported.`,
+                description: `Exporting to DOCX is not yet supported.`,
             });
             return;
         }
 
-        if (format === 'html') {
-            let htmlBody = '';
-
-            if (activeNote.type === 'richtext') {
-                htmlBody = activeNote.content;
-            } else if (activeNote.type === 'markdown') {
-                htmlBody = await marked.parse(activeNote.content);
-            } else { // calculator
-                htmlBody = `<pre style="font-family: monospace; white-space: pre-wrap;">${activeNote.content}</pre>`;
-            }
-
-            const fullHtml = `
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>${activeNote.title}</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
-                        h1, h2, h3, h4, h5, h6 { color: #111; }
-                        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; }
-                        code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; }
-                        table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
-                        th, td { border: 1px solid #dfe2e5; padding: .75rem; }
-                        th { font-weight: 600; }
-                        blockquote { color: #6a737d; border-left: .25em solid #dfe2e5; padding: 0 1em; margin-left: 0; }
-                    </style>
-                </head>
-                <body>
+        let htmlBody = '';
+        if (activeNote.type === 'richtext') {
+            htmlBody = activeNote.content;
+        } else if (activeNote.type === 'markdown') {
+            htmlBody = await marked.parse(activeNote.content);
+        } else { // calculator
+            htmlBody = `<pre style="font-family: monospace; white-space: pre-wrap;">${activeNote.content}</pre>`;
+        }
+        
+        const fullHtml = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${activeNote.title}</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .render-container { padding: 20px; max-width: 800px; margin: 0 auto; background-color: #fff; }
+                    h1, h2, h3, h4, h5, h6 { color: #111; }
+                    pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; white-space: pre-wrap; word-wrap: break-word; }
+                    code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; }
+                    table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+                    th, td { border: 1px solid #dfe2e5; padding: .75rem; }
+                    th { font-weight: 600; }
+                    blockquote { color: #6a737d; border-left: .25em solid #dfe2e5; padding: 0 1em; margin-left: 0; }
+                </style>
+            </head>
+            <body>
+                <div class="render-container">
                     <h1>${activeNote.title}</h1>
                     <hr>
                     ${htmlBody}
-                </body>
-                </html>`;
-
+                </div>
+            </body>
+            </html>`;
+            
+        if (format === 'html') {
             const blob = new Blob([fullHtml], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -195,8 +199,86 @@ export default function NotePage() {
                 title: "Export Successful",
                 description: `"${activeNote.title}" has been downloaded as an HTML file.`,
             });
+            return;
         }
-    };
+        
+        if (format === 'pdf') {
+             toast({
+                title: "Generating PDF...",
+                description: "This may take a moment.",
+            });
+            
+            const exportContainer = document.createElement('div');
+            exportContainer.style.position = 'absolute';
+            exportContainer.style.left = '-9999px';
+            exportContainer.innerHTML = fullHtml;
+            document.body.appendChild(exportContainer);
+            
+            const contentToRender = exportContainer.querySelector('.render-container') as HTMLElement;
+            if (!contentToRender) {
+                 toast({
+                    variant: "destructive",
+                    title: "PDF Export Failed",
+                    description: "Could not find content to render.",
+                });
+                document.body.removeChild(exportContainer);
+                return;
+            }
+
+            try {
+                const canvas = await html2canvas(contentToRender, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'px',
+                    format: 'a4',
+                });
+                
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = imgWidth / pdfWidth;
+                const finalImgHeight = imgHeight / ratio;
+                
+                let heightLeft = finalImgHeight;
+                let position = 0;
+                
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+                heightLeft -= pdfHeight;
+
+                while (heightLeft > 0) {
+                    position = -(finalImgHeight - heightLeft);
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+                    heightLeft -= pdfHeight;
+                }
+
+                pdf.save(`${activeNote.title.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`);
+
+                toast({
+                    title: "Export Successful",
+                    description: `"${activeNote.title}" has been downloaded as a PDF file.`,
+                });
+
+            } catch (error) {
+                console.error("PDF generation failed", error);
+                toast({
+                    variant: "destructive",
+                    title: "PDF Export Failed",
+                    description: "An error occurred while generating the PDF.",
+                });
+            } finally {
+                document.body.removeChild(exportContainer);
+            }
+        }
+    }, [activeNote, toast]);
 
     const ActiveNoteComponent = activeNote ? noteComponentMap[activeNote.type] : null;
 
