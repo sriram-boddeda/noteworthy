@@ -38,6 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { noteTypeOptions, type Note } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
+import { ThemeToggle } from './theme-toggle';
 
 
 export function AppSidebar() {
@@ -303,15 +304,18 @@ export function AppSidebar() {
           </div>
         </SidebarContent>
         <SidebarFooter>
-            <div className="flex h-14 items-center gap-2 p-2">
-                 <Avatar className="size-8 shrink-0">
-                    <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
-                    <AvatarFallback>U</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                    <span className="text-sm font-medium">User</span>
-                    <span className="text-xs text-muted-foreground">user@example.com</span>
+            <div className="flex h-14 items-center justify-between gap-2 p-2">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <Avatar className="size-8 shrink-0">
+                        <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
+                        <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                        <span className="text-sm font-medium">User</span>
+                        <span className="text-xs text-muted-foreground">user@example.com</span>
+                    </div>
                 </div>
+                <ThemeToggle />
             </div>
         </SidebarFooter>
       </Sidebar>

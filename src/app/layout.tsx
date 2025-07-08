@@ -5,6 +5,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppProvider } from '@/context/app-provider';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset } from '@/components/ui/sidebar';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Noteworthy',
@@ -26,15 +27,22 @@ export default function RootLayout({
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
       </head>
       <body className="font-body antialiased">
-        <SidebarProvider>
-          <AppProvider>
-            <AppSidebar />
-            <SidebarInset>
-              {children}
-            </SidebarInset>
-          </AppProvider>
-        </SidebarProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SidebarProvider>
+            <AppProvider>
+              <AppSidebar />
+              <SidebarInset>
+                {children}
+              </SidebarInset>
+            </AppProvider>
+          </SidebarProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
