@@ -55,7 +55,7 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
           <Card key={folder.id} className="flex flex-col">
             <CardHeader className="flex-grow">
               <CardTitle className="flex items-baseline gap-2">
-                <FolderIcon className="size-5" /> <span>{folder.name}</span>
+                <FolderIcon className="size-5 shrink-0" /> <span>{folder.name}</span>
               </CardTitle>
             </CardHeader>
             <CardFooter className="flex justify-end flex-wrap gap-2">
@@ -104,7 +104,7 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
             </Button>
             <AlertDialogAction onClick={() => onRestoreConfirm(true)}>
               Restore Folder and Notes
-            </AlertDialogAction>
+            </Button>
             <AlertDialogCancel className="sm:ml-auto mt-2 sm:mt-0">Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

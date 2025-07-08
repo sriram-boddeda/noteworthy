@@ -40,7 +40,7 @@ export function TrashList({ notes }: TrashListProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {notes.map((note) => {
-        const icon = noteTypeOptions.find(opt => opt.value === note.type)?.icon || <FileText className="size-4" />;
+        const icon = noteTypeOptions.find(opt => opt.value === note.type)?.icon || <FileText className="size-4 shrink-0" />;
         return (
           <Card key={note.id} className="flex flex-col">
             <CardHeader className="flex-grow">

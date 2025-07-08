@@ -21,9 +21,9 @@ export interface Folder {
 }
 
 export const noteTypeOptions = [
-    { value: 'richtext', label: 'Rich Text Note', icon: React.createElement(FileText, { className: "size-4" }) },
-    { value: 'markdown', label: 'Markdown Note', icon: React.createElement(FileType, { className: "size-4" }) },
-    { value: 'calculator', label: 'Calculator Note', icon: React.createElement(Calculator, { className: "size-4" }) },
+    { value: 'richtext', label: 'Rich Text Note', icon: React.createElement(FileText, { className: "size-4 shrink-0" }) },
+    { value: 'markdown', label: 'Markdown Note', icon: React.createElement(FileType, { className: "size-4 shrink-0" }) },
+    { value: 'calculator', label: 'Calculator Note', icon: React.createElement(Calculator, { className: "size-4 shrink-0" }) },
 ];
 
 
