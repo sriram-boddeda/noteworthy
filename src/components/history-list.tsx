@@ -69,7 +69,7 @@ const formatDescription = (item: ActionHistory) => {
     case 'COPY':
       return <>Copied {entityType} {target} to <strong className="font-medium text-foreground">{action.destination}</strong>.</>;
     case 'RETRIEVE':
-        return <>Retrieved note {target} from history.</>;
+        return <>Retrieved {entityType} {target} from history.</>;
     default:
       return 'An unknown action occurred.';
   }
@@ -77,7 +77,7 @@ const formatDescription = (item: ActionHistory) => {
 
 
 export function HistoryList({ history }: { history: ActionHistory[] }) {
-  const { getNoteById, folders, handleRetrieveNoteFromHistory } = useAppContext();
+  const { getNoteById, folders, handleRetrieveItemFromHistory } = useAppContext();
   
   return (
     <div className="flow-root">
@@ -91,7 +91,7 @@ export function HistoryList({ history }: { history: ActionHistory[] }) {
             <p className="text-sm text-muted-foreground">{formatDescription(item)}</p>
           );
           
-          const canRetrieve = item.action.type === 'PERMANENT_DELETE' && item.entityType === 'note' && !!item.entityData;
+          const canRetrieve = item.action.type === 'PERMANENT_DELETE' && !!item.entityData;
 
 
           return (
@@ -120,7 +120,7 @@ export function HistoryList({ history }: { history: ActionHistory[] }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleRetrieveNoteFromHistory(item.id)}
+                          onClick={() => handleRetrieveItemFromHistory(item.id)}
                         >
                           <FileUp className="mr-2 size-4" />
                           Retrieve
