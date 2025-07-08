@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -99,13 +98,13 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-             <Button variant="outline" onClick={() => onRestoreConfirm(false)}>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={() => onRestoreConfirm(false)}>
               Restore Folder Only
             </Button>
             <AlertDialogAction onClick={() => onRestoreConfirm(true)}>
               Restore Folder and Notes
             </Button>
-            <AlertDialogCancel className="sm:ml-auto mt-2 sm:mt-0">Cancel</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
