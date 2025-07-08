@@ -23,7 +23,6 @@ import {
   Link as LinkIcon,
   Highlighter,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Toggle } from '@/components/ui/toggle';
 import { useEffect, useCallback } from 'react';
@@ -209,11 +208,11 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
   }, [content, editor]);
 
   return (
-    <Card className="min-h-[calc(100vh-12rem)] shadow-lg overflow-hidden flex flex-col">
+    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col border">
       <TiptapToolbar editor={editor} />
-      <CardContent className="p-0 flex-grow overflow-y-auto">
+      <div className="p-0 flex-grow overflow-y-auto">
         <EditorContent editor={editor} className="h-full" />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

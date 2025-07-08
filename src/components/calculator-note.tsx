@@ -3,7 +3,6 @@
 import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -81,8 +80,8 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   }, [lines, results]);
 
   return (
-    <Card className="min-h-[calc(100vh-12rem)] shadow-lg overflow-hidden flex flex-col">
-      <CardContent className="p-0 flex-1 flex">
+    <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col border">
+      <div className="p-0 flex-1 flex">
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
           <div className="w-full md:w-1/2 p-4 flex flex-col">
@@ -193,7 +192,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
