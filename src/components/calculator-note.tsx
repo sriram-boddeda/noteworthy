@@ -94,8 +94,6 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
         let lastIndex = 0;
         let result = '';
 
-        if (line.trim() === '') return '&nbsp;';
-
         line.replace(tokenRegex, (match, comment, number, identifier, operator, offset) => {
             result += line.substring(lastIndex, offset).replace(/</g, '&lt;').replace(/>/g, '&gt;');
             
@@ -126,11 +124,11 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
         const lineResult = results.get(index);
         const highlightedLine = highlightLine(line);
         if (lineResult?.error) {
-            return `<div class="underline decoration-destructive decoration-wavy decoration-from-font" title="${lineResult.error}">${highlightedLine}</div>`;
+            return `<span class="underline decoration-destructive decoration-wavy decoration-from-font" title="${lineResult.error}">${highlightedLine}</span>`;
         }
-        return `<div>${highlightedLine}</div>`;
+        return highlightedLine;
       })
-      .join('');
+      .join('\n');
   }, [content, variables, results]);
 
 
@@ -183,7 +181,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 value={content}
                 onChange={(e) => onContentChange(e.target.value)}
                 onScroll={handleScroll}
-                className="absolute inset-0 z-10 h-full w-full resize-none border-0 bg-transparent p-4 text-transparent caret-foreground focus-visible:ring-0 whitespace-pre"
+                className="absolute inset-0 z-10 h-full w-full resize-none border-0 bg-transparent p-4 text-transparent caret-foreground focus-visible:ring-0 whitespace-pre-wrap"
                 spellCheck="false"
               />
               <div
