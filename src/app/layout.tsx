@@ -41,7 +41,14 @@ export default function RootLayout({
               </SidebarInset>
             </AppProvider>
           </SidebarProvider>
-          <Toaster position="top-right" richColors closeButton />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            classNames={{
+              closeButton: 'opacity-100',
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>
