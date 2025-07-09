@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -35,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, Palette } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 import { cn } from '@/lib/utils';
+import { ThemeCustomizer } from './theme-customizer';
 
 
 // Reusable Draggable component
@@ -144,6 +146,37 @@ function ItemPreview({ item, type }: { item: Note | FolderType, type: 'note' | '
     );
 }
 
+const parseSearchQuery = (query: string) => {
+  const textParts: string[] = [];
+  const tags: string[] = [];
+  const types: string[] = [];
+  const folders: string[] = [];
+
+  const regex = /(tag:|type:|in:)([\w-]+)|"([^"]+)"|(\S+)/g;
+  let match;
+
+  while ((match = regex.exec(query)) !== null) {
+    if (match[1] && match[2]) {
+      const key = match[1].toLowerCase();
+      const value = match[2].toLowerCase();
+      if (key === 'tag:') tags.push(value);
+      else if (key === 'type:') types.push(value);
+      else if (key === 'in:') folders.push(value);
+    } else if (match[3]) {
+      textParts.push(match[3]);
+    } else if (match[4]) {
+      textParts.push(match[4]);
+    }
+  }
+
+  return {
+    text: textParts.join(' ').toLowerCase(),
+    tags,
+    types: types.filter(t => noteTypeOptions.some(o => o.value === t)) as Note['type'][],
+    folders,
+  };
+};
+
 
 export function AppSidebar() {
   const { 
@@ -176,7 +209,7 @@ export function AppSidebar() {
   const folderIds = useMemo(() => folders.map(f => f.id), [folders]);
 
   const filteredData = useMemo(() => {
-    const lowerCaseQuery = searchQuery.toLowerCase();
+    const { text, tags, types, folders: inFolders } = parseSearchQuery(searchQuery);
 
     if (!searchQuery) {
         return {
@@ -187,15 +220,35 @@ export function AppSidebar() {
             rootNotes: notes.filter(n => !n.folderId).sort((a,b) => a.title.localeCompare(b.title)),
         };
     }
+    
+    let filteredNotes = notes;
 
-    const filteredNotes = notes.filter(n => n.title.toLowerCase().includes(lowerCaseQuery));
+    if (tags.length > 0) {
+      filteredNotes = filteredNotes.filter(note => tags.every(tag => note.tags.some(t => t.toLowerCase() === tag)));
+    }
+    if (types.length > 0) {
+      filteredNotes = filteredNotes.filter(note => types.includes(note.type));
+    }
+    if (inFolders.length > 0) {
+      const targetFolderIds = folders
+        .filter(f => inFolders.includes(f.name.toLowerCase()))
+        .map(f => f.id);
+      filteredNotes = filteredNotes.filter(note => note.folderId && targetFolderIds.includes(note.folderId));
+    }
+    if (text) {
+        filteredNotes = filteredNotes.filter(n => 
+            n.title.toLowerCase().includes(text) || 
+            n.content.toLowerCase().includes(text)
+        );
+    }
+    
     const filteredRootNotes = filteredNotes.filter(n => !n.folderId);
     
     const filteredFolders = folders.map(folder => ({
         ...folder,
         notes: filteredNotes.filter(n => n.folderId === folder.id),
     })).filter(folder => 
-        folder.name.toLowerCase().includes(lowerCaseQuery) || folder.notes.length > 0
+        folder.name.toLowerCase().includes(text) || folder.notes.length > 0
     );
 
     return { folders: filteredFolders, rootNotes: filteredRootNotes };
@@ -314,7 +367,7 @@ export function AppSidebar() {
                 <div className="relative mb-2 px-2">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                     <Input 
-                        placeholder="Search..." 
+                        placeholder="Search notes..." 
                         className="pl-8 h-9"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -479,7 +532,10 @@ export function AppSidebar() {
                             <span className="text-xs text-muted-foreground">user@example.com</span>
                         </div>
                     </div>
-                    <ThemeToggle />
+                    <div className="flex items-center">
+                        <ThemeCustomizer />
+                        <ThemeToggle />
+                    </div>
                 </div>
             </SidebarFooter>
         </Sidebar>

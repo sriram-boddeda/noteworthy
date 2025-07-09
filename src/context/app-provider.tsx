@@ -3,12 +3,16 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Folder, Note, ActionHistory, ActionDetail } from '@/lib/data';
+import type { Folder, Note, ActionHistory, ActionDetail, NoteVersion } from '@/lib/data';
 import { getInitialData } from '@/lib/data';
 import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 import type { Active, Over } from '@dnd-kit/core';
 
+interface CustomTheme {
+  primary: string;
+  accent: string;
+}
 interface AppContextType {
   folders: Folder[];
   notes: Note[];
@@ -16,6 +20,7 @@ interface AppContextType {
   trashedFolders: Folder[];
   isDataLoaded: boolean;
   actionHistory: ActionHistory[];
+  customTheme: CustomTheme;
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
   getNotesByTag: (tag: string) => Note[];
@@ -40,6 +45,8 @@ interface AppContextType {
   handleRestoreFolder: (folderId: string, restoreNotes: boolean) => void;
   handlePermanentDeleteFolder: (folderId: string, deleteContainedNotes: boolean) => void;
   handleDrop: (active: Active, over: Over | null) => void;
+  handleRestoreVersion: (noteId: string, versionTimestamp: number) => void;
+  handleThemeChange: (theme: Partial<CustomTheme>) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -54,6 +61,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionHistory[]>([]);
+  const [customTheme, setCustomTheme] = useState<CustomTheme>({ primary: '231 48% 48%', accent: '174 100% 29%' });
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -87,12 +95,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return newState;
     });
   }, []);
+  
+  const applyCustomTheme = useCallback((theme: CustomTheme) => {
+      const root = document.documentElement;
+      if (root) {
+        root.style.setProperty('--primary', theme.primary);
+        root.style.setProperty('--ring', theme.primary);
+        root.style.setProperty('--sidebar-primary', theme.primary);
+        root.style.setProperty('--sidebar-ring', theme.primary);
+        root.style.setProperty('--accent', theme.accent);
+      }
+  }, []);
 
   useEffect(() => {
     try {
       const storedNotes = localStorage.getItem('noteworthy-notes');
       const storedFolders = localStorage.getItem('noteworthy-folders');
       const storedHistory = localStorage.getItem('noteworthy-history');
+      const storedTheme = localStorage.getItem('noteworthy-theme');
 
       if (storedNotes && storedFolders) {
         setAllNotes(JSON.parse(storedNotes));
@@ -105,6 +125,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedHistory) {
         setActionHistory(JSON.parse(storedHistory));
       }
+      if (storedTheme) {
+        const parsedTheme = JSON.parse(storedTheme);
+        setCustomTheme(parsedTheme);
+        applyCustomTheme(parsedTheme);
+      }
+
     } catch (error) {
       console.error("Failed to load data from localStorage, using initial data.", error);
       const { notes: initialNotes, folders: initialFolders } = getInitialData();
@@ -113,7 +139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
         setIsDataLoaded(true);
     }
-  }, []);
+  }, [applyCustomTheme]);
 
   useEffect(() => {
     if (isDataLoaded) {
@@ -121,6 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
         localStorage.setItem('noteworthy-folders', JSON.stringify(allFolders));
         localStorage.setItem('noteworthy-history', JSON.stringify(actionHistory));
+        localStorage.setItem('noteworthy-theme', JSON.stringify(customTheme));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
         toast.error("Could not save data", {
@@ -128,7 +155,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [allNotes, allFolders, actionHistory, isDataLoaded]);
+  }, [allNotes, allFolders, actionHistory, customTheme, isDataLoaded]);
 
    useEffect(() => {
     if(aiTagState.error && aiTagState.timestamp) {
@@ -213,6 +240,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             summary: null,
             isTrashed: false,
             lastModified: Date.now(),
+            versions: [],
         };
         const destFolder = folderId ? allFolders.find(f => f.id === folderId) : null;
         setAllNotes(prev => [...prev, newNote]);
@@ -227,7 +255,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [allFolders, logAction]);
 
   const handleContentChange = useCallback((noteId: string, newContent: string) => {
-    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, content: newContent, lastModified: Date.now() } : n));
+    setAllNotes(prev => prev.map(n => {
+        if (n.id === noteId) {
+            const now = Date.now();
+            const lastVersion = n.versions[n.versions.length - 1];
+            
+            // Only save a version if content actually changed and it's been > 5 mins since last version
+            const shouldSaveVersion = n.content !== newContent && (!lastVersion || now - lastVersion.timestamp > 5 * 60 * 1000);
+
+            const newVersions = shouldSaveVersion 
+                ? [...n.versions, { timestamp: n.lastModified, content: n.content }] 
+                : n.versions;
+            
+            // Limit to 50 versions
+            if (newVersions.length > 50) {
+                newVersions.shift();
+            }
+
+            return { 
+                ...n, 
+                content: newContent, 
+                lastModified: now,
+                versions: newVersions
+            };
+        }
+        return n;
+    }));
   }, []);
 
   const handleTitleChange = useCallback((noteId: string, newTitle: string) => {
@@ -375,6 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       title: `Copy of ${noteToCopy.title}`,
       folderId,
       lastModified: Date.now(),
+      versions: [...noteToCopy.versions] // Also copy version history
     };
     
     const destFolder = folderId ? allFolders.find(f => f.id === folderId) : null;
@@ -416,7 +470,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         description: 'Notes inside were moved to Home.',
       });
     }
-  }, [allFolders, allNotes, logAction]);
+  }, [allFolders, logAction]);
 
   const handleRestoreFolder = useCallback((folderId: string, restoreNotes: boolean) => {
     const folder = allFolders.find(f => f.id === folderId);
@@ -506,6 +560,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getNoteById, handleMoveNote, handleDeleteNote, handleDeleteFolder, handleUndoDelete]);
 
+  const handleRestoreVersion = useCallback((noteId: string, versionTimestamp: number) => {
+    setAllNotes(prev => prev.map(n => {
+      if (n.id === noteId) {
+        const versionToRestore = n.versions.find(v => v.timestamp === versionTimestamp);
+        if (!versionToRestore) {
+          toast.error("Version not found.");
+          return n;
+        }
+
+        // Add the current content as a new version before overwriting it
+        const newVersions = [...n.versions, { timestamp: n.lastModified, content: n.content }];
+        if (newVersions.length > 50) newVersions.shift();
+
+        logAction('note', noteId, n.title, { type: 'RESTORE_VERSION' });
+        toast.success("Note version restored.");
+
+        return {
+          ...n,
+          content: versionToRestore.content,
+          versions: newVersions,
+          lastModified: Date.now()
+        };
+      }
+      return n;
+    }));
+  }, [logAction]);
+
+  const handleThemeChange = useCallback((theme: Partial<CustomTheme>) => {
+    const newTheme = { ...customTheme, ...theme };
+    setCustomTheme(newTheme);
+    applyCustomTheme(newTheme);
+  }, [customTheme, applyCustomTheme]);
+
 
   const value = useMemo(() => ({
     folders,
@@ -514,6 +601,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trashedFolders,
     isDataLoaded,
     actionHistory,
+    customTheme,
     getNoteById,
     getNotesByFolderId,
     getNotesByTag,
@@ -538,6 +626,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleRestoreFolder,
     handlePermanentDeleteFolder,
     handleDrop,
+    handleRestoreVersion,
+    handleThemeChange,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -545,9 +635,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, customTheme, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
+    handleRestoreVersion, handleThemeChange,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { PlusCircle, Trash2, Undo, Pencil, Move, Copy, Folder, FileText, FileUp, FileClock } from 'lucide-react';
+import { PlusCircle, Trash2, Undo, Pencil, Move, Copy, Folder, FileText, FileUp, FileClock, History } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +48,9 @@ const getActionIcon = (item: ActionHistory) => {
     case 'RETRIEVE':
         icon = <FileClock className="text-green-500" />;
         break;
+    case 'RESTORE_VERSION':
+      icon = <History className="text-indigo-500" />;
+      break;
     default:
       icon = entityType === 'folder' ? <Folder /> : <FileText />;
   }
@@ -80,6 +83,8 @@ const formatDescription = (item: ActionHistory) => {
       return <>Copied {entityType} {target} to <strong className="font-medium text-foreground">{action.destination}</strong>.</>;
     case 'RETRIEVE':
         return <>Retrieved {entityType} {target} from history.</>;
+    case 'RESTORE_VERSION':
+        return <>Restored a previous version of note {target}.</>;
     default:
       return 'An unknown action occurred.';
   }

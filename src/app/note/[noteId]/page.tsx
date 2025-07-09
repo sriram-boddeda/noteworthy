@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
@@ -10,7 +11,7 @@ import { CalculatorNote } from '@/components/calculator-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X, MoreVertical, Move, Copy } from 'lucide-react';
+import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X, MoreVertical, Move, Copy, Clock } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { formatDistanceToNow } from 'date-fns';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { NoteHistorySheet } from '@/components/note-history-sheet';
 
 
 const noteComponentMap = {
@@ -104,6 +106,7 @@ export default function NotePage() {
         handleUpdateSummary,
         handleMoveNote,
         handleCopyNote,
+        handleRestoreVersion,
         aiTagAction, 
         aiTagState,
         aiTtsAction,
@@ -116,6 +119,7 @@ export default function NotePage() {
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
     const [isCopyDialogOpen, setCopyDialogOpen] = useState(false);
+    const [isHistorySheetOpen, setHistorySheetOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const ttsFormRef = useRef<HTMLFormElement>(null);
     const lastTtsTimestamp = useRef<number | undefined>();
@@ -502,6 +506,10 @@ export default function NotePage() {
                                     <Copy className="mr-2 size-4" />
                                     <span>Create Copy</span>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => setHistorySheetOpen(true)}>
+                                    <Clock className="mr-2 size-4" />
+                                    <span>Version History</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                  <AlertDialog>
                                     <AlertDialogTrigger asChild>
@@ -632,8 +640,13 @@ export default function NotePage() {
                     </form>
                 </DialogContent>
             </Dialog>
+
+             <NoteHistorySheet
+                note={activeNote}
+                isOpen={isHistorySheetOpen}
+                onOpenChange={setHistorySheetOpen}
+                onRestore={(timestamp) => handleRestoreVersion(activeNote.id, timestamp)}
+            />
         </div>
     )
 }
-
-    
