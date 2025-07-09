@@ -62,7 +62,7 @@ function TableOfContents({ activeId }: { activeId: string }) {
 }
 
 export default function DocsPage() {
-  const [activeId, setActiveId] = useState(tocItems[0].id);
+  const [activeId, setActiveId] = useState('');
   const observer = useRef<IntersectionObserver | null>(null);
   const headingElementsRef = useRef<Record<string, IntersectionObserverEntry>>({});
 
@@ -91,6 +91,10 @@ export default function DocsPage() {
 
     const elements = tocItems.map(item => document.getElementById(item.id)).filter(Boolean);
     elements.forEach(el => observer.current?.observe(el as Element));
+
+    if (elements.length > 0) {
+        setActiveId(elements[0].id);
+    }
 
     return () => observer.current?.disconnect();
   }, [handleObserver]);
