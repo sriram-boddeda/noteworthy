@@ -41,7 +41,7 @@ export default function RootLayout({
               </SidebarInset>
             </AppProvider>
           </SidebarProvider>
-          <Toaster position="top-right" richColors />
+          <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>
     </html>
