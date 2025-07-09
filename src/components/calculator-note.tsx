@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useActionState, useEffect, useMemo, useState, useRef } from 'react';
@@ -195,11 +196,11 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 minimap: { enabled: false },
                 scrollBeyondLastLine: false,
                 wordWrap: 'on',
-                lineNumbers: 'on',
+                lineNumbers: 'off',
                 glyphMargin: false,
                 folding: false,
-                lineDecorationsWidth: 10,
-                lineNumbersMinChars: 3,
+                lineDecorationsWidth: 0,
+                lineNumbersMinChars: 0,
                 padding: {
                   top: 24,
                   bottom: 24
@@ -237,6 +238,11 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 {outputLines.length > 0 ? (
                   outputLines.map(({ line, index, result }) => {
                     if (!result) return null;
+
+                    const isAssignment = /^\s*[a-zA-Z_][\w]*\s*=/.test(line.trim());
+                    if (isAssignment) {
+                        return null;
+                    }
 
                     return (
                       <div
