@@ -66,6 +66,19 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
 
   const { results, variables } = useMemo(() => evaluateNotebook(content), [content]);
 
+  const outputLines = useMemo(() => {
+    const lines = content.split('\n');
+    return Array.from(results.keys())
+      .sort((a, b) => a - b)
+      .map(index => {
+        return {
+          line: lines[index],
+          index,
+          result: results.get(index),
+        };
+      });
+  }, [content, results]);
+
   const handleScroll = () => {
     if (backdropRef.current && editorRef.current) {
       backdropRef.current.scrollTop = editorRef.current.scrollTop;
