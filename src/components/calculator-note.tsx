@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useRef } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useTheme } from 'next-themes';
 import Editor, { type OnMount } from "@monaco-editor/react";
@@ -52,7 +52,6 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   const { theme } = useTheme();
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<any | null>(null);
 
   useEffect(() => {
     if (state.starterTemplate) {
@@ -86,7 +85,6 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-    monacoRef.current = monaco;
 
     monaco.languages.register({ id: 'calculator' });
 
@@ -102,44 +100,6 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
       },
     });
   };
-
-  useEffect(() => {
-    if (monacoRef.current) {
-      const monaco = monacoRef.current;
-      
-      // We need to wait for the DOM to be ready to get computed styles
-      setTimeout(() => {
-        const rootStyle = getComputedStyle(document.documentElement);
-        const editorBg = `hsl(${rootStyle.getPropertyValue('--card').trim()})`;
-        const lineHighlightBg = `hsl(${rootStyle.getPropertyValue('--muted').trim()})`;
-        const lineHighlightBgWithAlpha = `hsla(${rootStyle.getPropertyValue('--muted').trim()}, 0.5)`;
-
-        monaco.editor.defineTheme('calculator-dynamic', {
-          base: theme === 'dark' ? 'vs-dark' : 'vs',
-          inherit: true,
-          rules: theme === 'dark' ? 
-          [
-            { token: 'comment', foreground: '6A9955' },
-            { token: 'identifier', foreground: '9CDCFE' },
-            { token: 'number', foreground: 'B5CEA8' },
-            { token: 'operator', foreground: 'D4D4D4' },
-          ] :
-          [
-            { token: 'comment', foreground: '008000' },
-            { token: 'identifier', foreground: '0000FF' },
-            { token: 'number', foreground: '098658' },
-            { token: 'operator', foreground: 'A31515' },
-          ],
-          colors: {
-            'editor.background': editorBg,
-            'editor.lineHighlightBackground': lineHighlightBgWithAlpha,
-          },
-        });
-        
-        monaco.editor.setTheme('calculator-dynamic');
-      }, 0);
-    }
-  }, [theme]);
 
   return (
     <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col bg-card border rounded-lg">
@@ -189,7 +149,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
               value={content}
               onMount={handleEditorDidMount}
               onChange={(value) => onContentChange(value || '')}
-              theme="vs" // Start with a default, useEffect will override
+              theme={theme === 'dark' ? 'vs-dark' : 'vs'}
               loading={<Skeleton className="h-full w-full rounded-none" />}
               options={{
                 fontFamily: "'Fira Code', monospace",
@@ -201,7 +161,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 lineNumbers: 'off',
                 glyphMargin: false,
                 folding: false,
-                lineDecorationsWidth: 16,
+                lineDecorationsWidth: 10,
                 lineNumbersMinChars: 0,
                 padding: {
                   top: 24,
