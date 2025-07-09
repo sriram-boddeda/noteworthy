@@ -36,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, BookOpen } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -411,6 +411,17 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </Droppable>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname === '/docs'}
+                        >
+                            <Link href="/docs">
+                                <BookOpen />
+                                <span>Docs</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
 
                 <Accordion type="single" collapsible className="w-full" defaultValue="recents">
