@@ -153,8 +153,3 @@ body {
      @apply bg-primary/10 outline-2 outline-dashed outline-primary outline-offset-2;
   }
 }
-
-/* Custom override for Sonner toast close button */
-[data-sonner-toast] button[data-close-button] {
-    opacity: 1 !important;
-}
