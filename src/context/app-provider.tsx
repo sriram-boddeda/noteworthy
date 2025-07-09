@@ -232,14 +232,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAllNotes(prev => prev.map(n => {
         if (n.id === noteId) {
             const now = Date.now();
-            const lastVersion = n.versions[n.versions.length - 1];
+            const currentVersions = n.versions || [];
+            const lastVersion = currentVersions[currentVersions.length - 1];
             
             // Only save a version if content actually changed and it's been > 5 mins since last version
             const shouldSaveVersion = n.content !== newContent && (!lastVersion || now - lastVersion.timestamp > 5 * 60 * 1000);
 
             const newVersions = shouldSaveVersion 
-                ? [...n.versions, { timestamp: n.lastModified, content: n.content }] 
-                : n.versions;
+                ? [...currentVersions, { timestamp: n.lastModified, content: n.content }] 
+                : currentVersions;
             
             // Limit to 50 versions
             if (newVersions.length > 50) {
@@ -402,7 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       title: `Copy of ${noteToCopy.title}`,
       folderId,
       lastModified: Date.now(),
-      versions: [...noteToCopy.versions] // Also copy version history
+      versions: [...(noteToCopy.versions || [])] // Also copy version history
     };
     
     const destFolder = folderId ? allFolders.find(f => f.id === folderId) : null;
@@ -537,14 +538,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleRestoreVersion = useCallback((noteId: string, versionTimestamp: number) => {
     setAllNotes(prev => prev.map(n => {
       if (n.id === noteId) {
-        const versionToRestore = n.versions.find(v => v.timestamp === versionTimestamp);
+        const currentVersions = n.versions || [];
+        const versionToRestore = currentVersions.find(v => v.timestamp === versionTimestamp);
         if (!versionToRestore) {
           toast.error("Version not found.");
           return n;
         }
 
         // Add the current content as a new version before overwriting it
-        const newVersions = [...n.versions, { timestamp: n.lastModified, content: n.content }];
+        const newVersions = [...currentVersions, { timestamp: n.lastModified, content: n.content }];
         if (newVersions.length > 50) newVersions.shift();
 
         logAction('note', noteId, n.title, { type: 'RESTORE_VERSION' });
@@ -619,3 +621,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
