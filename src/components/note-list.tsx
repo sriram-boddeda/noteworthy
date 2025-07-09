@@ -27,8 +27,8 @@ export function NoteList({ notes }: NoteListProps) {
 
         return (
             <Link href={`/note/${note.id}`} key={note.id} className="block h-full">
-            <Card className="group flex flex-col h-full transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-border/60 hover:border-border">
-                <div className="flex h-full flex-col transition-transform duration-200 group-hover:scale-[.98] [backface-visibility:hidden]">
+            <Card className="group flex flex-col h-full transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-border/60 hover:border-border [transform:translateZ(0)]">
+                <div className="flex h-full flex-col transition-transform duration-200 group-hover:scale-[.98] [transform:translateZ(0)]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
                             {icon}
