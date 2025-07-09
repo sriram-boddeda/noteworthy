@@ -1,7 +1,11 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useTheme } from 'next-themes';
+import Editor, { type OnMount } from "@monaco-editor/react";
+import type { editor } from 'monaco-editor';
+
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,11 +19,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
+import { Skeleton } from './ui/skeleton';
 
 const initialState: GenerateNoteState = {
   starterTemplate: '',
@@ -44,6 +48,10 @@ interface CalculatorNoteProps {
 export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps) {
   const [state, formAction] = useActionState(generateNoteAction, initialState);
   const [isDialogOpen, setDialogOpen] = useState(false);
+  const { theme } = useTheme();
+
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<any | null>(null);
 
   useEffect(() => {
     if (state.starterTemplate) {
@@ -74,6 +82,61 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
         };
       });
   }, [content, results]);
+
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+
+    monaco.languages.register({ id: 'calculator' });
+
+    monaco.languages.setMonarchTokensProvider('calculator', {
+      tokenizer: {
+        root: [
+          [/^#.*$/, 'comment'],
+          [/[a-zA-Z_][\w]*/, 'identifier'],
+          [/\d*\.\d+([eE][\-+]?\d+)?/, 'number'],
+          [/\d+/, 'number'],
+          [/[=+\-*/()]/, 'operator'],
+        ],
+      },
+    });
+
+    monaco.editor.defineTheme('calculator-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '6A9955' },
+        { token: 'identifier', foreground: '9CDCFE' },
+        { token: 'number', foreground: 'B5CEA8' },
+        { token: 'operator', foreground: 'D4D4D4' },
+      ],
+      colors: {
+        'editor.background': 'hsl(var(--card))',
+        'editor.lineHighlightBackground': 'hsl(var(--muted) / 0.5)',
+      },
+    });
+
+    monaco.editor.defineTheme('calculator-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '008000' },
+        { token: 'identifier', foreground: '0000FF' },
+        { token: 'number', foreground: '098658' },
+        { token: 'operator', foreground: 'A31515' },
+      ],
+      colors: {
+        'editor.background': 'hsl(var(--card))',
+         'editor.lineHighlightBackground': 'hsl(var(--muted) / 0.5)',
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (monacoRef.current) {
+      monacoRef.current.editor.setTheme(theme === 'dark' ? 'calculator-dark' : 'calculator-light');
+    }
+  }, [theme]);
 
   return (
     <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col bg-card border rounded-lg">
@@ -117,12 +180,31 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 </DialogContent>
               </Dialog>
             </div>
-            <Textarea
-              placeholder="Type your calculations here... e.g., rent = 1200"
+            <Editor
+              height="100%"
+              language="calculator"
               value={content}
-              onChange={(e) => onContentChange(e.target.value)}
-              className="h-full min-h-[50vh] md:min-h-[calc(100vh-12rem)] border-0 resize-none focus-visible:ring-0 p-6 font-mono text-sm leading-6"
-              spellCheck="false"
+              onMount={handleEditorDidMount}
+              onChange={(value) => onContentChange(value || '')}
+              theme={theme === 'dark' ? 'calculator-dark' : 'calculator-light'}
+              loading={<Skeleton className="h-full w-full rounded-none" />}
+              options={{
+                fontFamily: "'Fira Code', monospace",
+                fontSize: 14,
+                lineHeight: 24,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                lineNumbers: 'on',
+                glyphMargin: false,
+                folding: false,
+                lineDecorationsWidth: 10,
+                lineNumbersMinChars: 3,
+                padding: {
+                  top: 24,
+                  bottom: 24
+                }
+              }}
             />
           </div>
           <Separator orientation="horizontal" className="md:hidden" />
