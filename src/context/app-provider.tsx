@@ -9,10 +9,6 @@ import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 import type { Active, Over } from '@dnd-kit/core';
 
-interface CustomTheme {
-  primary: string;
-  accent: string;
-}
 interface AppContextType {
   folders: Folder[];
   notes: Note[];
@@ -20,7 +16,6 @@ interface AppContextType {
   trashedFolders: Folder[];
   isDataLoaded: boolean;
   actionHistory: ActionHistory[];
-  customTheme: CustomTheme;
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
   getNotesByTag: (tag: string) => Note[];
@@ -46,7 +41,6 @@ interface AppContextType {
   handlePermanentDeleteFolder: (folderId: string, deleteContainedNotes: boolean) => void;
   handleDrop: (active: Active, over: Over | null) => void;
   handleRestoreVersion: (noteId: string, versionTimestamp: number) => void;
-  handleThemeChange: (theme: Partial<CustomTheme>) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -61,7 +55,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionHistory[]>([]);
-  const [customTheme, setCustomTheme] = useState<CustomTheme>({ primary: '231 48% 48%', accent: '174 100% 29%' });
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -96,23 +89,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   
-  const applyCustomTheme = useCallback((theme: CustomTheme) => {
-      const root = document.documentElement;
-      if (root) {
-        root.style.setProperty('--primary', theme.primary);
-        root.style.setProperty('--ring', theme.primary);
-        root.style.setProperty('--sidebar-primary', theme.primary);
-        root.style.setProperty('--sidebar-ring', theme.primary);
-        root.style.setProperty('--accent', theme.accent);
-      }
-  }, []);
-
   useEffect(() => {
     try {
       const storedNotes = localStorage.getItem('noteworthy-notes');
       const storedFolders = localStorage.getItem('noteworthy-folders');
       const storedHistory = localStorage.getItem('noteworthy-history');
-      const storedTheme = localStorage.getItem('noteworthy-theme');
 
       if (storedNotes && storedFolders) {
         setAllNotes(JSON.parse(storedNotes));
@@ -125,12 +106,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedHistory) {
         setActionHistory(JSON.parse(storedHistory));
       }
-      if (storedTheme) {
-        const parsedTheme = JSON.parse(storedTheme);
-        setCustomTheme(parsedTheme);
-        applyCustomTheme(parsedTheme);
-      }
-
     } catch (error) {
       console.error("Failed to load data from localStorage, using initial data.", error);
       const { notes: initialNotes, folders: initialFolders } = getInitialData();
@@ -139,7 +114,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } finally {
         setIsDataLoaded(true);
     }
-  }, [applyCustomTheme]);
+  }, []);
 
   useEffect(() => {
     if (isDataLoaded) {
@@ -147,7 +122,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
         localStorage.setItem('noteworthy-folders', JSON.stringify(allFolders));
         localStorage.setItem('noteworthy-history', JSON.stringify(actionHistory));
-        localStorage.setItem('noteworthy-theme', JSON.stringify(customTheme));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
         toast.error("Could not save data", {
@@ -155,7 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [allNotes, allFolders, actionHistory, customTheme, isDataLoaded]);
+  }, [allNotes, allFolders, actionHistory, isDataLoaded]);
 
    useEffect(() => {
     if(aiTagState.error && aiTagState.timestamp) {
@@ -587,12 +561,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [logAction]);
 
-  const handleThemeChange = useCallback((theme: Partial<CustomTheme>) => {
-    const newTheme = { ...customTheme, ...theme };
-    setCustomTheme(newTheme);
-    applyCustomTheme(newTheme);
-  }, [customTheme, applyCustomTheme]);
-
 
   const value = useMemo(() => ({
     folders,
@@ -601,7 +569,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trashedFolders,
     isDataLoaded,
     actionHistory,
-    customTheme,
     getNoteById,
     getNotesByFolderId,
     getNotesByTag,
@@ -627,7 +594,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handlePermanentDeleteFolder,
     handleDrop,
     handleRestoreVersion,
-    handleThemeChange,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -635,10 +601,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, customTheme, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
-    handleRestoreVersion, handleThemeChange,
+    handleRestoreVersion,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

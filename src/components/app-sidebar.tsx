@@ -53,7 +53,6 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 import { cn } from '@/lib/utils';
-import { ThemeCustomizer } from './theme-customizer';
 
 
 // Reusable Draggable component
@@ -533,7 +532,6 @@ export function AppSidebar() {
                         </div>
                     </div>
                     <div className="flex items-center">
-                        <ThemeCustomizer />
                         <ThemeToggle />
                     </div>
                 </div>
