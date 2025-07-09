@@ -20,6 +20,11 @@ export function NoteList({ notes }: NoteListProps) {
         const icon = noteTypeOptions.find(opt => opt.value === note.type)?.icon || <FileText className="size-5 shrink-0" />;
         const description = note.summary || note.content.replace(/<[^>]*>?/gm, ' ').substring(0, 150);
 
+        const lastModifiedText =
+          note.lastModified && typeof note.lastModified === 'number'
+            ? formatDistanceToNow(new Date(note.lastModified), { addSuffix: true })
+            : null;
+
         return (
             <Link href={`/note/${note.id}`} key={note.id} className="block h-full">
             <Card className="flex flex-col h-full transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-border/60 hover:border-border">
@@ -43,7 +48,7 @@ export function NoteList({ notes }: NoteListProps) {
                             <Badge variant="outline" className="font-normal text-muted-foreground">+{note.tags.length - 2}</Badge>
                         )}
                     </div>
-                    <span>{formatDistanceToNow(new Date(note.lastModified), { addSuffix: true })}</span>
+                    {lastModifiedText && <span>{lastModifiedText}</span>}
                 </CardFooter>
             </Card>
             </Link>
