@@ -101,41 +101,43 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
         ],
       },
     });
-
-    monaco.editor.defineTheme('calculator-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6A9955' },
-        { token: 'identifier', foreground: '9CDCFE' },
-        { token: 'number', foreground: 'B5CEA8' },
-        { token: 'operator', foreground: 'D4D4D4' },
-      ],
-      colors: {
-        'editor.background': 'hsl(var(--card))',
-        'editor.lineHighlightBackground': 'hsl(var(--muted) / 0.5)',
-      },
-    });
-
-    monaco.editor.defineTheme('calculator-light', {
-      base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '008000' },
-        { token: 'identifier', foreground: '0000FF' },
-        { token: 'number', foreground: '098658' },
-        { token: 'operator', foreground: 'A31515' },
-      ],
-      colors: {
-        'editor.background': 'hsl(var(--card))',
-         'editor.lineHighlightBackground': 'hsl(var(--muted) / 0.5)',
-      },
-    });
   };
 
   useEffect(() => {
     if (monacoRef.current) {
-      monacoRef.current.editor.setTheme(theme === 'dark' ? 'calculator-dark' : 'calculator-light');
+      const monaco = monacoRef.current;
+      
+      // We need to wait for the DOM to be ready to get computed styles
+      setTimeout(() => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        const editorBg = `hsl(${rootStyle.getPropertyValue('--card').trim()})`;
+        const lineHighlightBg = `hsl(${rootStyle.getPropertyValue('--muted').trim()})`;
+        const lineHighlightBgWithAlpha = `hsla(${rootStyle.getPropertyValue('--muted').trim()}, 0.5)`;
+
+        monaco.editor.defineTheme('calculator-dynamic', {
+          base: theme === 'dark' ? 'vs-dark' : 'vs',
+          inherit: true,
+          rules: theme === 'dark' ? 
+          [
+            { token: 'comment', foreground: '6A9955' },
+            { token: 'identifier', foreground: '9CDCFE' },
+            { token: 'number', foreground: 'B5CEA8' },
+            { token: 'operator', foreground: 'D4D4D4' },
+          ] :
+          [
+            { token: 'comment', foreground: '008000' },
+            { token: 'identifier', foreground: '0000FF' },
+            { token: 'number', foreground: '098658' },
+            { token: 'operator', foreground: 'A31515' },
+          ],
+          colors: {
+            'editor.background': editorBg,
+            'editor.lineHighlightBackground': lineHighlightBgWithAlpha,
+          },
+        });
+        
+        monaco.editor.setTheme('calculator-dynamic');
+      }, 0);
     }
   }, [theme]);
 
@@ -187,7 +189,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
               value={content}
               onMount={handleEditorDidMount}
               onChange={(value) => onContentChange(value || '')}
-              theme={theme === 'dark' ? 'calculator-dark' : 'calculator-light'}
+              theme="vs" // Start with a default, useEffect will override
               loading={<Skeleton className="h-full w-full rounded-none" />}
               options={{
                 fontFamily: "'Fira Code', monospace",
