@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useState, useRef } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,6 @@ import { toast } from 'sonner';
 import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
-import { cn } from '@/lib/utils';
 
 const initialState: GenerateNoteState = {
   starterTemplate: '',
@@ -45,9 +44,6 @@ interface CalculatorNoteProps {
 export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps) {
   const [state, formAction] = useActionState(generateNoteAction, initialState);
   const [isDialogOpen, setDialogOpen] = useState(false);
-
-  const editorRef = useRef<HTMLTextAreaElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (state.starterTemplate) {
@@ -79,71 +75,13 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
       });
   }, [content, results]);
 
-  const handleScroll = () => {
-    if (backdropRef.current && editorRef.current) {
-      backdropRef.current.scrollTop = editorRef.current.scrollTop;
-      backdropRef.current.scrollLeft = editorRef.current.scrollLeft;
-    }
-  };
-
-  const highlightedContent = useMemo(() => {
-    const definedVars = variables;
-
-    const escapeHtml = (text: string) => text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    const highlightLine = (line: string) => {
-        const tokenRegex = /(#.*)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_][a-zA-Z0-9_]*\b)|([+\-*/()=])/g;
-        let lastIndex = 0;
-        let result = '';
-
-        line.replace(tokenRegex, (match, comment, number, identifier, operator, offset) => {
-            result += escapeHtml(line.substring(lastIndex, offset));
-            
-            if (comment) {
-                result += `<span class="text-muted-foreground italic">${escapeHtml(comment)}</span>`;
-            } else if (number) {
-                result += `<span class="text-chart-2">${escapeHtml(number)}</span>`;
-            } else if (identifier) {
-                if (definedVars.has(identifier)) {
-                    result += `<span class="text-chart-1">${escapeHtml(identifier)}</span>`;
-                } else {
-                    result += `<span class="text-foreground/80">${escapeHtml(identifier)}</span>`;
-                }
-            } else if (operator) {
-                 result += `<span class="text-primary/90">${escapeHtml(operator)}</span>`;
-            }
-            
-            lastIndex = offset + match.length;
-            return match;
-        });
-        result += escapeHtml(line.substring(lastIndex));
-        return result;
-    }
-
-    return content
-      .split('\n')
-      .map((line, index) => {
-        const lineResult = results.get(index);
-        const highlightedLine = highlightLine(line);
-        if (lineResult?.error) {
-            return `<span class="underline decoration-destructive decoration-wavy decoration-from-font" title="${lineResult.error}">${highlightedLine}</span>`;
-        }
-        return highlightedLine;
-      })
-      .join('\n');
-  }, [content, variables, results]);
-
-  // These classes must be identical between the textarea and the backdrop to ensure pixel-perfect alignment.
-  const editorCommonClasses = "absolute inset-0 w-full h-full p-4 m-0 bg-transparent border-0 resize-none font-mono text-sm leading-6 whitespace-pre-wrap focus-visible:ring-0";
-
-
   return (
     <div className="min-h-[calc(100vh-12rem)] overflow-hidden flex flex-col bg-card border rounded-lg">
       <div className="p-0 flex-1 flex">
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
           <div className="relative w-full md:w-3/4 flex flex-col">
-            <div className="absolute top-4 right-4 z-20">
+            <div className="absolute top-4 right-4 z-10">
               <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant="ghost" className="opacity-50 hover:opacity-100 transition-opacity">
@@ -179,26 +117,13 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 </DialogContent>
               </Dialog>
             </div>
-            <div className="relative flex-grow h-full">
-               <Textarea
-                ref={editorRef}
-                placeholder="Type your calculations here... e.g., rent = 1200"
-                value={content}
-                onChange={(e) => onContentChange(e.target.value)}
-                onScroll={handleScroll}
-                className={cn(editorCommonClasses, "z-10 text-transparent caret-foreground")}
-                spellCheck="false"
-              />
-              <div
-                ref={backdropRef}
-                aria-hidden="true"
-                className={cn(editorCommonClasses, "overflow-auto pointer-events-none")}
-              >
-                  <div
-                    dangerouslySetInnerHTML={{ __html: highlightedContent + '\n' }}
-                  />
-              </div>
-            </div>
+            <Textarea
+              placeholder="Type your calculations here... e.g., rent = 1200"
+              value={content}
+              onChange={(e) => onContentChange(e.target.value)}
+              className="h-full min-h-[50vh] md:min-h-[calc(100vh-12rem)] border-0 resize-none focus-visible:ring-0 p-6 font-mono text-sm leading-6"
+              spellCheck="false"
+            />
           </div>
           <Separator orientation="horizontal" className="md:hidden" />
           <Separator orientation="vertical" className="hidden md:block" />
