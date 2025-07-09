@@ -269,7 +269,7 @@ export function RichTextNote({ content, onContentChange }: RichTextNoteProps) {
     content: content,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-4 h-full min-h-[calc(100vh-16rem)] bg-card',
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none p-4 h-full min-h-[calc(100vh-16rem)] bg-card [&_ul[data-type="taskList"]_li>p]:my-0',
       },
     },
     onUpdate: ({ editor }) => {

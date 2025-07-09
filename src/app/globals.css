@@ -93,21 +93,15 @@ body {
   }
   
   ul[data-type="taskList"] li {
-    @apply flex items-start my-2;
+    @apply flex items-center my-2;
   }
   
   ul[data-type="taskList"] li > label {
-    /* Nudge the checkbox down slightly to better align with the text baseline */
-    @apply flex items-center justify-center mr-2 mt-0.5;
+    @apply mr-2;
   }
   
   ul[data-type="taskList"] li > div {
     @apply flex-1;
-  }
-
-  /* Remove default top margin from paragraphs inside task lists for better alignment */
-  ul[data-type="taskList"] li > div > p:first-child {
-    @apply mt-0;
   }
 
   .tiptap p.is-editor-empty:first-child::before {
