@@ -25,7 +25,7 @@ interface NoteHistorySheetProps {
 export function NoteHistorySheet({ note, isOpen, onOpenChange, onRestore }: NoteHistorySheetProps) {
   if (!note) return null;
 
-  const allVersions = [...note.versions, { timestamp: note.lastModified, content: note.content }]
+  const allVersions = [...(note.versions || []), { timestamp: note.lastModified, content: note.content }]
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
