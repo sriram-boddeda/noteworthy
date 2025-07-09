@@ -45,9 +45,6 @@ export default function RootLayout({
             position="top-right"
             richColors
             closeButton
-            classNames={{
-              closeButton: 'opacity-100',
-            }}
           />
         </ThemeProvider>
       </body>
