@@ -27,29 +27,31 @@ export function NoteList({ notes }: NoteListProps) {
 
         return (
             <Link href={`/note/${note.id}`} key={note.id} className="block h-full">
-            <Card className="flex flex-col h-full transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-border/60 hover:border-border">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                        {icon}
-                        <span className="truncate font-headline text-lg">{note.title}</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow pb-4">
-                     <CardDescription className="line-clamp-3 text-sm">
-                        {description}{description.length >= 150 && '...'}
-                    </CardDescription>
-                </CardContent>
-                <CardFooter className="flex justify-between items-end text-xs text-muted-foreground pt-0">
-                    <div className="flex flex-wrap items-center gap-1">
-                        {note.tags.slice(0, 2).map(tag => (
-                            <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
-                        ))}
-                        {note.tags.length > 2 && (
-                            <Badge variant="outline" className="font-normal text-muted-foreground">+{note.tags.length - 2}</Badge>
-                        )}
-                    </div>
-                    {lastModifiedText && <span>{lastModifiedText}</span>}
-                </CardFooter>
+            <Card className="group flex flex-col h-full transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-border/60 hover:border-border">
+                <div className="flex h-full flex-col transition-transform duration-200 group-hover:scale-[.98]">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            {icon}
+                            <span className="truncate font-headline text-lg">{note.title}</span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow pb-4">
+                         <CardDescription className="line-clamp-3 text-sm">
+                            {description}{description.length >= 150 && '...'}
+                        </CardDescription>
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-end text-xs text-muted-foreground pt-0">
+                        <div className="flex flex-wrap items-center gap-1">
+                            {note.tags.slice(0, 2).map(tag => (
+                                <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
+                            ))}
+                            {note.tags.length > 2 && (
+                                <Badge variant="outline" className="font-normal text-muted-foreground">+{note.tags.length - 2}</Badge>
+                            )}
+                        </div>
+                        {lastModifiedText && <span>{lastModifiedText}</span>}
+                    </CardFooter>
+                </div>
             </Card>
             </Link>
         )
