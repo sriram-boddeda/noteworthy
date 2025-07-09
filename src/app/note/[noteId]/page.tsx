@@ -3,11 +3,11 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { useFormStatus } from 'react-dom';
 import { useAppContext } from '@/context/app-provider';
 import { MarkdownNote } from '@/components/markdown-note';
-import { CalculatorNote } from '@/components/calculator-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,18 @@ import html2canvas from 'html2canvas';
 import { formatDistanceToNow } from 'date-fns';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { NoteHistorySheet } from '@/components/note-history-sheet';
+
+const CalculatorNote = dynamic(
+  () => import('@/components/calculator-note').then(mod => mod.CalculatorNote),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  }
+);
 
 
 const noteComponentMap = {

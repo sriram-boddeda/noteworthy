@@ -209,7 +209,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             title,
             type,
             tags: [],
-            content: `# ${title}\n\nStart writing here...`,
+            content: `# ${title}\\n\\nStart writing here...`,
             folderId: folderId,
             summary: null,
             isTrashed: false,
@@ -332,9 +332,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const itemExists = type === 'note'
         ? allNotes.some(n => n.id === item.id)
         : allFolders.some(f => f.id === item.id);
+        
+      const itemName = type === 'note' ? (item as Note).title : (item as Folder).name;
 
       if (itemExists) {
-        toast.warning("Retrieval Skipped", { description: `An item named "${item.title || item.name}" with the same ID already exists.` });
+        toast.warning("Retrieval Skipped", { description: `An item named "${itemName}" with the same ID already exists.` });
         return false;
       }
       
@@ -345,7 +347,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setAllFolders(prev => [...prev, restoredItem as Folder]);
       }
-      logAction(type, restoredItem.id, restoredItem.title || restoredItem.name, { type: 'RETRIEVE' });
+      logAction(type, restoredItem.id, itemName, { type: 'RETRIEVE' });
       return true;
     }
 
@@ -621,5 +623,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    
