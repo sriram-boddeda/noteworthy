@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useActionState, useEffect, useMemo, useState, useRef } from 'react';
@@ -21,6 +20,7 @@ import { toast } from 'sonner';
 import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
+import { cn } from '@/lib/utils';
 
 const initialState: GenerateNoteState = {
   starterTemplate: '',
@@ -89,32 +89,34 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   const highlightedContent = useMemo(() => {
     const definedVars = variables;
 
+    const escapeHtml = (text: string) => text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
     const highlightLine = (line: string) => {
         const tokenRegex = /(#.*)|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_][a-zA-Z0-9_]*\b)|([+\-*/()=])/g;
         let lastIndex = 0;
         let result = '';
 
         line.replace(tokenRegex, (match, comment, number, identifier, operator, offset) => {
-            result += line.substring(lastIndex, offset).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            result += escapeHtml(line.substring(lastIndex, offset));
             
             if (comment) {
-                result += `<span class="text-muted-foreground italic">${comment.replace(/</g, '&lt;')}</span>`;
+                result += `<span class="text-muted-foreground italic">${escapeHtml(comment)}</span>`;
             } else if (number) {
-                result += `<span class="text-chart-2">${number}</span>`;
+                result += `<span class="text-chart-2">${escapeHtml(number)}</span>`;
             } else if (identifier) {
                 if (definedVars.has(identifier)) {
-                    result += `<span class="text-chart-1">${identifier}</span>`;
+                    result += `<span class="text-chart-1">${escapeHtml(identifier)}</span>`;
                 } else {
-                    result += `<span class="text-foreground/80">${identifier}</span>`;
+                    result += `<span class="text-foreground/80">${escapeHtml(identifier)}</span>`;
                 }
             } else if (operator) {
-                 result += `<span class="text-primary/90">${operator}</span>`;
+                 result += `<span class="text-primary/90">${escapeHtml(operator)}</span>`;
             }
             
             lastIndex = offset + match.length;
             return match;
         });
-        result += line.substring(lastIndex).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        result += escapeHtml(line.substring(lastIndex));
         return result;
     }
 
@@ -130,6 +132,9 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
       })
       .join('\n');
   }, [content, variables, results]);
+
+  // These classes must be identical between the textarea and the backdrop to ensure pixel-perfect alignment.
+  const editorCommonClasses = "absolute inset-0 w-full h-full p-4 m-0 bg-transparent border-0 resize-none font-mono text-sm leading-6 whitespace-pre-wrap focus-visible:ring-0";
 
 
   return (
@@ -174,24 +179,23 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                 </DialogContent>
               </Dialog>
             </div>
-            <div className="relative flex-grow h-full font-mono text-sm leading-6">
+            <div className="relative flex-grow h-full">
                <Textarea
                 ref={editorRef}
                 placeholder="Type your calculations here... e.g., rent = 1200"
                 value={content}
                 onChange={(e) => onContentChange(e.target.value)}
                 onScroll={handleScroll}
-                className="absolute inset-0 z-10 h-full w-full resize-none border-0 bg-transparent p-4 text-transparent caret-foreground focus-visible:ring-0 whitespace-pre-wrap"
+                className={cn(editorCommonClasses, "z-10 text-transparent caret-foreground")}
                 spellCheck="false"
               />
               <div
                 ref={backdropRef}
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full overflow-auto pointer-events-none p-4"
+                className={cn(editorCommonClasses, "overflow-auto pointer-events-none")}
               >
                   <div
-                    dangerouslySetInnerHTML={{ __html: highlightedContent }}
-                    className="whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: highlightedContent + '\n' }}
                   />
               </div>
             </div>
