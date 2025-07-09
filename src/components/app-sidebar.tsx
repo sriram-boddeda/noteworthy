@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
 import {
   DndContext,
@@ -26,6 +26,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import {
   Accordion,
@@ -49,7 +50,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { noteTypeOptions, type Note, type Folder as FolderType } from '@/lib/data';
-import { useRouter } from 'next/navigation';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
 import { cn } from '@/lib/utils';
@@ -116,8 +116,8 @@ function Droppable({
       ref={setNodeRef}
       className={cn(
         className,
-        'relative',
-        showHighlight && 'drop-indicator-folder'
+        'relative transition-colors duration-200',
+        showHighlight && 'rounded-md bg-primary/10'
       )}
     >
       {children}
@@ -379,6 +379,7 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/'}
+                                className={cn(pathname === '/' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                             >
                                 <Link href="/">
                                     <Home />
@@ -391,6 +392,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/history'}
+                             className={cn(pathname === '/history' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                         >
                             <Link href="/history">
                                 <History />
@@ -403,6 +405,7 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/trash'}
+                                className={cn(pathname === '/trash' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                             >
                                 <Link href="/trash">
                                     <Trash2 />
@@ -415,6 +418,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/docs'}
+                            className={cn(pathname === '/docs' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                         >
                             <Link href="/docs">
                                 <BookOpen />
@@ -423,6 +427,8 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+
+                <SidebarSeparator className="my-2 mx-2" />
 
                 <Accordion type="single" collapsible className="w-full" defaultValue="recents">
                     <AccordionItem value="recents" className="border-none">
@@ -440,7 +446,7 @@ export function AppSidebar() {
                                         <SidebarMenuButton
                                             asChild
                                             isActive={pathname === `/note/${note.id}`}
-                                            className="pl-7"
+                                            className={cn("pl-7", pathname === `/note/${note.id}` && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                                         >
                                             <Link href={`/note/${note.id}`}>
                                                 {noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />}
@@ -465,6 +471,7 @@ export function AppSidebar() {
                                     <SidebarMenuButton
                                         asChild
                                         isActive={pathname === `/note/${note.id}`}
+                                        className={cn(pathname === `/note/${note.id}` && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                                     >
                                         <Link href={`/note/${note.id}`}>
                                             {icon}
@@ -479,28 +486,37 @@ export function AppSidebar() {
 
 
               <Accordion type="multiple" defaultValue={folderIds} className="w-full">
-                {filteredData.folders.map((folder) => (
+                {filteredData.folders.map((folder) => {
+                  const isFolderActive = pathname.startsWith(`/folder/${folder.id}`);
+                  return (
                   <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
                     <AccordionItem value={folder.id} className="border-none relative group/folder-item">
                        <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
-                          <AccordionTrigger className="px-2 py-1.5 text-sm font-medium hover:bg-sidebar-accent rounded-md [&[data-state=open]>svg]:rotate-90">
-                              <Link href={`/folder/${folder.id}`} className="flex items-center gap-2 flex-grow min-w-0" onClick={(e) => e.stopPropagation()}>
-                                  <Folder className="size-4" />
-                                  <span className="truncate">{folder.name}</span>
-                              </Link>
+                          <AccordionTrigger 
+                            onClick={() => router.push(`/folder/${folder.id}`)}
+                            className={cn(
+                                "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
+                                isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                            )}
+                            >
+                             <div className="flex flex-1 items-center gap-2">
+                                <Folder className="size-4" />
+                                <span className="truncate">{folder.name}</span>
+                             </div>
                           </AccordionTrigger>
                       </Draggable>
                       <AccordionContent className="pt-1">
                         <SidebarMenu>
                           {folder.notes.map((note) => {
                              const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                             const isNoteActive = pathname === `/note/${note.id}`;
                              return (
                                <SidebarMenuItem key={note.id}>
                                   <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
                                     <SidebarMenuButton
                                      asChild
-                                     isActive={pathname === `/note/${note.id}`}
-                                     className="pl-7"
+                                     isActive={isNoteActive}
+                                     className={cn("pl-7", isNoteActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
                                    >
                                      <Link href={`/note/${note.id}`}>
                                          {icon}
@@ -515,7 +531,7 @@ export function AppSidebar() {
                       </AccordionContent>
                     </AccordionItem>
                   </Droppable>
-                ))}
+                )})}
               </Accordion>
               <div className="px-2 mt-4">
                   <h2 className="text-base font-semibold mb-2">Tags</h2>
