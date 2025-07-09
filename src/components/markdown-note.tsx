@@ -66,8 +66,14 @@ export function MarkdownNote({ content, onContentChange }: MarkdownNoteProps) {
               },
               table: ({node, ...props}) => (
                 <div className="my-4 overflow-x-auto rounded-md border">
-                    <table className="w-full" {...props} />
+                    <table className="w-full border-collapse" {...props} />
                 </div>
+              ),
+              th: ({node, ...props}) => (
+                <th className="border-b px-4 py-2 text-left font-semibold" {...props} />
+              ),
+              td: ({node, ...props}) => (
+                <td className="border-b px-4 py-2 align-top" {...props} />
               ),
             }}
           >
