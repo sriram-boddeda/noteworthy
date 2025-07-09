@@ -162,7 +162,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const notes = useMemo(() => allNotes.filter(n => !n.isTrashed), [allNotes]);
   const folders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
   const trashedNotes = useMemo(() => allNotes.filter(n => n.isTrashed), [allNotes]);
-  const trashedFolders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
+  const trashedFolders = useMemo(() => allFolders.filter(f => f.isTrashed), [allFolders]);
 
   const uniqueTags = useMemo(() => {
     const allTags = notes.flatMap(note => note.tags);
@@ -531,11 +531,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
     } else if (activeType === 'folder') {
         const folderId = item.id;
+        const folder = allFolders.find(f => f.id === folderId);
+        if (!folder) return;
+
         if (overId === 'trash-dropzone') {
             handleDeleteFolder(folderId, true);
         }
     }
-  }, [getNoteById, handleMoveNote, handleDeleteNote, handleDeleteFolder, handleUndoDelete]);
+  }, [getNoteById, handleMoveNote, handleDeleteNote, handleDeleteFolder, handleUndoDelete, allFolders]);
 
   const handleRestoreVersion = useCallback((noteId: string, versionTimestamp: number) => {
     setAllNotes(prev => prev.map(n => {
