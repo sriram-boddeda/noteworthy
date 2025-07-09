@@ -22,6 +22,17 @@ const nextConfig: NextConfig = {
     // This is to fix a warning from genkit's dependency on opentelemetry.
     // It's an optional dependency that is not used in this app.
     config.externals.push('@opentelemetry/exporter-jaeger');
+
+    // This is to suppress a warning from handlebars, a dependency of genkit.
+    // It's a harmless warning about a deprecated feature.
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      {
+        module: /node_modules\/handlebars/,
+        message: /require\.extensions/,
+      },
+    ];
+
     return config;
   },
 };
