@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,79 +9,73 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 96.1%;
+    --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
+    --card: 0 0% 98%;
     --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
+    --popover: 0 0% 98%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 231 48% 48%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 90%;
+    --secondary: 0 0% 94%;
     --secondary-foreground: 240 5.9% 10%;
-    --muted: 0 0% 90%;
+    --muted: 0 0% 94%;
     --muted-foreground: 240 3.8% 46.1%;
-
-    /* neutral gray accent instead of green */
-    --accent: 0 0% 20%;
+    --accent: 301 38% 38%;
     --accent-foreground: 0 0% 98%;
-
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 86%;
-    --input: 0 0% 86%;
-    --ring: 231 48% 48%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 221 83% 53%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 100%;
+    --sidebar-background: 0 0% 96%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 231 48% 48%;
+    --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 94%;
+    --sidebar-accent: 0 0% 90%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 0 0% 89.8%;
-    --sidebar-ring: 231 48% 48%;
+    --sidebar-border: 0 0% 86%;
+    --sidebar-ring: 221 83% 53%;
   }
   .dark {
-    --background: 240 6% 10%;
-    --foreground: 0 0% 98%;
-    --card: 240 5% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 5% 12%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 231 48% 48%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4% 18%;
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+    --card: 223 70% 6%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 70% 6%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 224 71% 4%;
+    --secondary: 215 28% 17%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 18%;
-    --muted-foreground: 240 5% 64.9%;
-
-    /* same neutral gray accent in dark mode */
-    --accent: 0 0% 20%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 301 38% 58%;
     --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 18%;
-    --input: 240 4% 18%;
-    --ring: 231 48% 48%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 217 91% 60%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5% 12%;
+    --sidebar-background: 224 71% 2%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 231 48% 48%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4% 18%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 215 28% 17%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 4% 18%;
-    --sidebar-ring: 231 48% 48%;
+    --sidebar-border: 215 28% 17%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -102,11 +97,17 @@ body {
   }
   
   ul[data-type="taskList"] li > label {
-    @apply flex items-center justify-center mr-2 mt-1;
+    /* Nudge the checkbox down slightly to better align with the text baseline */
+    @apply flex items-center justify-center mr-2 mt-0.5;
   }
   
   ul[data-type="taskList"] li > div {
     @apply flex-1;
+  }
+
+  /* Remove default top margin from paragraphs inside task lists for better alignment */
+  ul[data-type="taskList"] li > div > p:first-child {
+    @apply mt-0;
   }
 
   .tiptap p.is-editor-empty:first-child::before {
