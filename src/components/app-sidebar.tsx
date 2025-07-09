@@ -36,7 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, Palette } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -445,28 +445,26 @@ export function AppSidebar() {
                     </AccordionItem>
                 </Accordion>
 
-                <Droppable id="home-dropzone" activeDragType={activeDragType}>
-                    <SidebarMenu>
-                         {filteredData.rootNotes.map((note) => {
-                            const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                            return (
-                                <SidebarMenuItem key={note.id}>
-                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
-                                        <SidebarMenuButton
-                                            asChild
-                                            isActive={pathname === `/note/${note.id}`}
-                                        >
-                                            <Link href={`/note/${note.id}`}>
-                                                {icon}
-                                                <span>{note.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </Draggable>
-                                </SidebarMenuItem>
-                            )
-                         })}
-                    </SidebarMenu>
-                </Droppable>
+                <SidebarMenu>
+                     {filteredData.rootNotes.map((note) => {
+                        const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                        return (
+                            <SidebarMenuItem key={note.id}>
+                                <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={pathname === `/note/${note.id}`}
+                                    >
+                                        <Link href={`/note/${note.id}`}>
+                                            {icon}
+                                            <span>{note.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </Draggable>
+                            </SidebarMenuItem>
+                        )
+                     })}
+                </SidebarMenu>
 
 
               <Accordion type="multiple" defaultValue={folderIds} className="w-full">
