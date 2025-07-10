@@ -45,6 +45,8 @@ interface AppContextType {
   handleDrop: (active: Active, over: Over | null) => void;
   handleRestoreVersion: (noteId: string, versionTimestamp: number) => void;
   handleUpdateSettings: (newSettings: Partial<UserSettings>) => void;
+  handleExportData: () => string;
+  handleImportData: (jsonString: string) => { notes: Note[], folders: Folder[] };
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -587,6 +589,65 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toast.success("Settings saved successfully.");
   }, []);
 
+  const handleExportData = useCallback(() => {
+    const dataToExport = {
+      notes: allNotes,
+      folders: allFolders,
+      history: actionHistory,
+      settings: settings
+    };
+    const jsonString = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    const fileName = `noteworthy-backup-${date}.json`;
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return fileName;
+  }, [allNotes, allFolders, actionHistory, settings]);
+  
+  const handleImportData = useCallback((jsonString: string) => {
+    const data = JSON.parse(jsonString);
+
+    if (!data.notes || !data.folders) {
+      throw new Error("Invalid import file. Missing 'notes' or 'folders' data.");
+    }
+
+    // Basic validation
+    const isValidNotes = Array.isArray(data.notes) && data.notes.every((n: any) => n.id && n.title);
+    const isValidFolders = Array.isArray(data.folders) && data.folders.every((f: any) => f.id && f.name);
+
+    if (!isValidNotes || !isValidFolders) {
+        throw new Error("Invalid data structure in import file.");
+    }
+
+    const importedNotes = data.notes as Note[];
+    const importedFolders = data.folders as Folder[];
+
+    setAllNotes(prev => {
+        const noteMap = new Map(prev.map(n => [n.id, n]));
+        importedNotes.forEach(n => noteMap.set(n.id, n));
+        return Array.from(noteMap.values());
+    });
+
+    setAllFolders(prev => {
+        const folderMap = new Map(prev.map(f => [f.id, f]));
+        importedFolders.forEach(f => folderMap.set(f.id, f));
+        return Array.from(folderMap.values());
+    });
+    
+    if (data.settings) {
+        setSettings(prev => ({...prev, ...data.settings}));
+    }
+
+    return { notes: importedNotes, folders: importedFolders };
+  }, []);
+
 
   const value = useMemo(() => ({
     folders,
@@ -623,6 +684,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDrop,
     handleRestoreVersion,
     handleUpdateSettings,
+    handleExportData,
+    handleImportData,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -633,7 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     folders, notes, trashedNotes, trashedFolders, isDataLoaded, isAiEnabled, actionHistory, settings, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
-    handleRestoreVersion, handleUpdateSettings,
+    handleRestoreVersion, handleUpdateSettings, handleExportData, handleImportData,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

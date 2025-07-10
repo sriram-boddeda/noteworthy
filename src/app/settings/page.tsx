@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Settings } from 'lucide-react';
 import { SettingsForm } from './_components/settings-form';
+import { DataManagement } from './_components/data-management';
 
 export default function SettingsPage() {
     
@@ -37,6 +38,7 @@ export default function SettingsPage() {
       <main className="flex-1 p-4">
         <div className="mx-auto max-w-2xl space-y-8">
             <SettingsForm />
+            <DataManagement />
         </div>
       </main>
     </div>
