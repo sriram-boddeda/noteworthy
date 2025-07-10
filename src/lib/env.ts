@@ -1,12 +1,12 @@
 import {z} from 'zod';
 
 const envSchema = z.object({
-  GOOGLE_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 const parsedEnv = envSchema.parse(process.env);
 
 export const env = {
     ...parsedEnv,
-    isAiEnabled: !!parsedEnv.GOOGLE_API_KEY,
+    isAiEnabled: !!parsedEnv.GEMINI_API_KEY,
 }
