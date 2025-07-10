@@ -8,6 +8,7 @@ import { getInitialData } from '@/lib/data';
 import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 import type { Active, Over } from '@dnd-kit/core';
+import { env } from '@/lib/env';
 
 interface AppContextType {
   folders: Folder[];
@@ -15,6 +16,7 @@ interface AppContextType {
   trashedNotes: Note[];
   trashedFolders: Folder[];
   isDataLoaded: boolean;
+  isAiEnabled: boolean;
   actionHistory: ActionHistory[];
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
@@ -57,6 +59,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [actionHistory, setActionHistory] = useState<ActionHistory[]>([]);
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const isAiEnabled = env.isAiEnabled;
 
   const [aiTagState, aiTagAction] = React.useActionState<SuggestTagsState, FormData>(suggestTagsAction, { suggestedTags: [], error: null });
   const [aiTtsState, aiTtsAction] = React.useActionState<TextToSpeechState, FormData>(textToSpeechAction, { audioData: null, error: null });
@@ -575,6 +578,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trashedNotes,
     trashedFolders,
     isDataLoaded,
+    isAiEnabled,
     actionHistory,
     getNoteById,
     getNotesByFolderId,
@@ -608,7 +612,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, isAiEnabled, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
     handleRestoreVersion,

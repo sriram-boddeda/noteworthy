@@ -4,4 +4,9 @@ const envSchema = z.object({
   GOOGLE_API_KEY: z.string().optional(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+export const env = {
+    ...parsedEnv,
+    isAiEnabled: !!parsedEnv.GOOGLE_API_KEY,
+}

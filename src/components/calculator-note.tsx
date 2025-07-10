@@ -25,6 +25,7 @@ import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
 import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
+import { useAppContext } from '@/context/app-provider';
 
 const initialState: GenerateNoteState = {
   starterTemplate: '',
@@ -50,6 +51,7 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   const [state, formAction] = useActionState(generateNoteAction, initialState);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const { theme } = useTheme();
+  const { isAiEnabled } = useAppContext();
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
@@ -107,42 +109,44 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
         <div className="flex flex-col md:flex-row flex-1">
           {/* Left Panel: Input Editor */}
           <div className="relative w-full md:w-3/4 flex flex-col">
-            <div className="absolute top-4 right-4 z-10">
-              <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="ghost" className="opacity-50 hover:opacity-100 transition-opacity">
-                    <Sparkles className="mr-2 h-4 w-4 text-primary" />
-                    Generate with AI
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <form action={formAction}>
-                    <DialogHeader>
-                      <DialogTitle>Generate Calculator Note</DialogTitle>
-                      <DialogDescription>
-                        Describe what you want to calculate, and we&apos;ll create a template for you.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="prompt" className="text-right">
-                          Prompt
-                        </Label>
-                        <Input
-                          id="prompt"
-                          name="prompt"
-                          defaultValue="A trip with friends to split expenses"
-                          className="col-span-3"
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <GenerateButton />
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
+            {isAiEnabled && (
+                <div className="absolute top-4 right-4 z-10">
+                <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="opacity-50 hover:opacity-100 transition-opacity">
+                        <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                        Generate with AI
+                    </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                    <form action={formAction}>
+                        <DialogHeader>
+                        <DialogTitle>Generate Calculator Note</DialogTitle>
+                        <DialogDescription>
+                            Describe what you want to calculate, and we&apos;ll create a template for you.
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="prompt" className="text-right">
+                            Prompt
+                            </Label>
+                            <Input
+                            id="prompt"
+                            name="prompt"
+                            defaultValue="A trip with friends to split expenses"
+                            className="col-span-3"
+                            />
+                        </div>
+                        </div>
+                        <DialogFooter>
+                        <GenerateButton />
+                        </DialogFooter>
+                    </form>
+                    </DialogContent>
+                </Dialog>
+                </div>
+            )}
             <Editor
               height="100%"
               language="calculator"

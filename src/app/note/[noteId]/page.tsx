@@ -125,7 +125,8 @@ export default function NotePage() {
         aiTtsState,
         aiSummaryAction,
         aiSummaryState,
-        isDataLoaded 
+        isDataLoaded,
+        isAiEnabled,
     } = useAppContext();
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
@@ -445,24 +446,28 @@ export default function NotePage() {
                                             onChange={(e) => onUpdateTags(e.target.value.split(','))}
                                         />
                                     </div>
-                                    <input type="hidden" name="noteContent" value={activeNote.content} />
-                                    <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
-                                    <div className="flex flex-col space-y-2">
-                                        <AiSuggestButton />
-                                        {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
-                                            <div className="space-y-2">
-                                                <p className="text-sm font-medium">Suggestions:</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {aiTagState.suggestedTags.map(tag => (
-                                                        <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
-                                                            <PlusCircle className="mr-2 size-3" />
-                                                            {tag}
-                                                        </Button>
-                                                    ))}
-                                                </div>
+                                    {isAiEnabled && (
+                                        <>
+                                            <input type="hidden" name="noteContent" value={activeNote.content} />
+                                            <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
+                                            <div className="flex flex-col space-y-2">
+                                                <AiSuggestButton />
+                                                {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
+                                                    <div className="space-y-2">
+                                                        <p className="text-sm font-medium">Suggestions:</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {aiTagState.suggestedTags.map(tag => (
+                                                                <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
+                                                                    <PlusCircle className="mr-2 size-3" />
+                                                                    {tag}
+                                                                </Button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
+                                        </>
+                                    )}
                                 </form>
                             </PopoverContent>
                         </Popover>
@@ -470,7 +475,7 @@ export default function NotePage() {
 
                     {/* Right side: Actions */}
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                        {activeNote.type !== 'calculator' && (
+                        {isAiEnabled && activeNote.type !== 'calculator' && (
                             <>
                                 <form action={aiSummaryAction}>
                                     <input type="hidden" name="noteContent" value={activeNote.content} />
@@ -562,7 +567,7 @@ export default function NotePage() {
             </header>
             
             <main className="flex-1 overflow-auto p-4">
-                {activeNote.summary && (
+                {isAiEnabled && activeNote.summary && (
                     <Alert className="relative mb-4 bg-primary/5 border-primary/20 [&>svg]:text-primary">
                         <BrainCircuit className="h-4 w-4" />
                         <AlertTitle className="flex justify-between items-center text-foreground">
