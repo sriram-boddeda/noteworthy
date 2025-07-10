@@ -3,8 +3,8 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Folder, Note, ActionHistory, ActionDetail, NoteVersion } from '@/lib/data';
-import { getInitialData } from '@/lib/data';
+import type { Folder, Note, ActionHistory, ActionDetail, NoteVersion, UserSettings } from '@/lib/data';
+import { getInitialData, defaultSettings } from '@/lib/data';
 import { toast } from 'sonner';
 import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 import type { Active, Over } from '@dnd-kit/core';
@@ -18,6 +18,7 @@ interface AppContextType {
   isDataLoaded: boolean;
   isAiEnabled: boolean;
   actionHistory: ActionHistory[];
+  settings: UserSettings;
   getNoteById: (id: string) => Note | undefined;
   getNotesByFolderId: (folderId: string | null) => Note[];
   getNotesByTag: (tag: string) => Note[];
@@ -43,6 +44,7 @@ interface AppContextType {
   handlePermanentDeleteFolder: (folderId: string, deleteContainedNotes: boolean) => void;
   handleDrop: (active: Active, over: Over | null) => void;
   handleRestoreVersion: (noteId: string, versionTimestamp: number) => void;
+  handleUpdateSettings: (newSettings: Partial<UserSettings>) => void;
   aiTagState: SuggestTagsState;
   aiTagAction: (payload: FormData) => void;
   aiTtsState: TextToSpeechState;
@@ -57,6 +59,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [allNotes, setAllNotes] = useState<Note[]>([]);
   const [actionHistory, setActionHistory] = useState<ActionHistory[]>([]);
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const isAiEnabled = env.isAiEnabled;
@@ -97,6 +100,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const storedNotes = localStorage.getItem('noteworthy-notes');
       const storedFolders = localStorage.getItem('noteworthy-folders');
       const storedHistory = localStorage.getItem('noteworthy-history');
+      const storedSettings = localStorage.getItem('noteworthy-settings');
 
       if (storedNotes && storedFolders) {
         setAllNotes(JSON.parse(storedNotes));
@@ -109,6 +113,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedHistory) {
         setActionHistory(JSON.parse(storedHistory));
       }
+      if (storedSettings) {
+        setSettings({ ...defaultSettings, ...JSON.parse(storedSettings) });
+      }
+
     } catch (error) {
       console.error("Failed to load data from localStorage, using initial data.", error);
       const { notes: initialNotes, folders: initialFolders } = getInitialData();
@@ -125,6 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
         localStorage.setItem('noteworthy-folders', JSON.stringify(allFolders));
         localStorage.setItem('noteworthy-history', JSON.stringify(actionHistory));
+        localStorage.setItem('noteworthy-settings', JSON.stringify(settings));
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
         toast.error("Could not save data", {
@@ -132,7 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }
     }
-  }, [allNotes, allFolders, actionHistory, isDataLoaded]);
+  }, [allNotes, allFolders, actionHistory, settings, isDataLoaded]);
 
    useEffect(() => {
     if(aiTagState.error && aiTagState.timestamp) {
@@ -173,8 +182,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notes]);
   
   const recentNotes = useMemo(() => {
-    return [...notes].sort((a, b) => b.lastModified - a.lastModified).slice(0, 5);
-  }, [notes]);
+    return [...notes]
+        .sort((a, b) => b.lastModified - a.lastModified)
+        .slice(0, settings.recentNotesCount);
+  }, [notes, settings.recentNotesCount]);
 
   const getNoteById = useCallback((id: string) => {
     return allNotes.find(note => note.id === id);
@@ -212,7 +223,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             title,
             type,
             tags: [],
-            content: `# ${title}\\n\\nStart writing here...`,
+            content: `# ${title}\n\nStart writing here...`,
             folderId: folderId,
             summary: null,
             isTrashed: false,
@@ -571,6 +582,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [logAction]);
 
+  const handleUpdateSettings = useCallback((newSettings: Partial<UserSettings>) => {
+    setSettings(prev => ({...prev, ...newSettings}));
+    toast.success("Settings saved successfully.");
+  }, []);
+
 
   const value = useMemo(() => ({
     folders,
@@ -580,6 +596,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isDataLoaded,
     isAiEnabled,
     actionHistory,
+    settings,
     getNoteById,
     getNotesByFolderId,
     getNotesByTag,
@@ -605,6 +622,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handlePermanentDeleteFolder,
     handleDrop,
     handleRestoreVersion,
+    handleUpdateSettings,
     aiTagState,
     aiTagAction,
     aiTtsState,
@@ -612,10 +630,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     aiSummaryState,
     aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, trashedFolders, isDataLoaded, isAiEnabled, actionHistory, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, isAiEnabled, actionHistory, settings, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
-    handleRestoreVersion,
+    handleRestoreVersion, handleUpdateSettings,
     aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 

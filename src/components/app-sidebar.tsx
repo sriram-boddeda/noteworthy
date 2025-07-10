@@ -37,7 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, BookOpen } from 'lucide-react';
+import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, BookOpen, Settings } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
@@ -188,6 +188,7 @@ export function AppSidebar() {
       isDataLoaded, 
       recentNotes,
       handleDrop,
+      settings,
   } = useAppContext();
 
   const pathname = usePathname();
@@ -379,7 +380,7 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/'}
-                                className={cn(pathname === '/' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
+                                className={cn("font-semibold", pathname === '/' && "bg-sidebar-accent text-sidebar-accent-foreground")}
                             >
                                 <Link href="/">
                                     <Home />
@@ -392,7 +393,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/history'}
-                             className={cn(pathname === '/history' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
+                             className={cn("font-semibold", pathname === '/history' && "bg-sidebar-accent text-sidebar-accent-foreground")}
                         >
                             <Link href="/history">
                                 <History />
@@ -405,7 +406,7 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 asChild
                                 isActive={pathname === '/trash'}
-                                className={cn(pathname === '/trash' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
+                                className={cn("font-semibold", pathname === '/trash' && "bg-sidebar-accent text-sidebar-accent-foreground")}
                             >
                                 <Link href="/trash">
                                     <Trash2 />
@@ -418,7 +419,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/docs'}
-                            className={cn(pathname === '/docs' && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
+                            className={cn("font-semibold", pathname === '/docs' && "bg-sidebar-accent text-sidebar-accent-foreground")}
                         >
                             <Link href="/docs">
                                 <BookOpen />
@@ -491,20 +492,21 @@ export function AppSidebar() {
                   return (
                   <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
                     <AccordionItem value={folder.id} className="border-none relative group/folder-item">
-                       <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
-                          <AccordionTrigger 
-                            onClick={() => router.push(`/folder/${folder.id}`)}
-                            className={cn(
-                                "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
-                                isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                            )}
-                            >
-                             <div className="flex flex-1 items-center gap-2">
-                                <Folder className="size-4" />
-                                <span className="truncate">{folder.name}</span>
-                             </div>
-                          </AccordionTrigger>
-                      </Draggable>
+                        <Link href={`/folder/${folder.id}`} className="block">
+                            <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
+                                <AccordionTrigger 
+                                    className={cn(
+                                        "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
+                                        isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                                    )}
+                                >
+                                    <div className="flex flex-1 items-center gap-2">
+                                        <Folder className="size-4" />
+                                        <span className="truncate">{folder.name}</span>
+                                    </div>
+                                </AccordionTrigger>
+                            </Draggable>
+                        </Link>
                       <AccordionContent className="pt-1">
                         <SidebarMenu>
                           {folder.notes.map((note) => {
@@ -545,6 +547,21 @@ export function AppSidebar() {
               </div>
             </SidebarContent>
             <SidebarFooter>
+                <SidebarSeparator className="my-1 mx-2" />
+                <SidebarMenu>
+                     <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={pathname === '/settings'}
+                            className={cn("font-semibold", pathname === '/settings' && "bg-sidebar-accent text-sidebar-accent-foreground")}
+                        >
+                            <Link href="/settings">
+                                <Settings />
+                                <span>Settings</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
                 <div className="flex h-14 items-center justify-between gap-2 p-2">
                     <div className="flex items-center gap-2 overflow-hidden">
                         <Avatar className="size-8 shrink-0">
@@ -599,7 +616,7 @@ export function AppSidebar() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="type">Note Type</Label>
-                        <Select name="type" defaultValue="richtext">
+                        <Select name="type" defaultValue={settings.defaultNoteType}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a note type" />
                             </SelectTrigger>

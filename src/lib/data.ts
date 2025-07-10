@@ -48,6 +48,11 @@ export interface ActionHistory {
   containedEntitiesData?: Note[] | null;
 }
 
+export interface UserSettings {
+  defaultNoteType: Note['type'];
+  recentNotesCount: number;
+}
+
 export const noteTypeOptions = [
   {
     value: 'richtext',
@@ -65,6 +70,11 @@ export const noteTypeOptions = [
     icon: React.createElement(Calculator, { className: 'size-4 shrink-0' })
   },
 ];
+
+export const defaultSettings: UserSettings = {
+  defaultNoteType: 'richtext',
+  recentNotesCount: 5,
+};
 
 export function getInitialData(): { notes: Note[]; folders: Folder[] } {
   const initialFolders: Folder[] = [
