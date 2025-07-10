@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input';
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppContext } from "@/context/app-provider";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Download, Upload, Loader2 } from 'lucide-react';
 export function DataManagement() {
     const { handleImportData, handleExportData } = useAppContext();
     const [isImporting, setIsImporting] = useState(false);
-    const fileInputRef = useState<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const onExportClick = () => {
         try {
@@ -74,7 +74,7 @@ export function DataManagement() {
                         <p className="text-sm text-muted-foreground">Download all your notes and folders as a single JSON file.</p>
                     </div>
                     <Button onClick={onExportClick} variant="outline" className="mt-2 sm:mt-0">
-                        <Download className="mr-2" />
+                        <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
                 </div>
@@ -98,7 +98,7 @@ export function DataManagement() {
                             disabled={isImporting}
                             className="mt-2 sm:mt-0"
                         >
-                            {isImporting ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
+                            {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                             Import
                         </Button>
                     </div>
