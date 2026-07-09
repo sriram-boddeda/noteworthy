@@ -1,8 +1,6 @@
-
 'use client';
 
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from 'monaco-editor';
@@ -23,24 +21,9 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { evaluateNotebook } from '@/lib/calculator';
 import { Loader2, Sparkles } from 'lucide-react';
-import { generateNoteAction, type GenerateNoteState } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
-import { useAppContext } from '@/context/app-provider';
-
-const initialState: GenerateNoteState = {
-  starterTemplate: '',
-  error: null,
-};
-
-function GenerateButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Generate
-    </Button>
-  );
-}
+import { useAiContext } from '@/context/ai-provider';
+import { useAiAction } from '@/hooks/use-ai-action';
 
 interface CalculatorNoteProps {
   content: string;
@@ -48,27 +31,32 @@ interface CalculatorNoteProps {
 }
 
 export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps) {
-  const [state, formAction] = useActionState(generateNoteAction, initialState);
   const [isDialogOpen, setDialogOpen] = useState(false);
+  const [prompt, setPrompt] = useState('A trip with friends to split expenses');
   const { theme } = useTheme();
-  const { isAiEnabled } = useAppContext();
+  const { isAiEnabled, generateCalculatorStarter } = useAiContext();
+  const [generateState, doGenerate] = useAiAction<string>(generateCalculatorStarter);
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
-    if (state.starterTemplate) {
-      onContentChange(state.starterTemplate);
+    if (generateState.data) {
+      onContentChange(generateState.data);
       setDialogOpen(false);
       toast.success('Template Generated!', {
         description: 'Your calculator note is ready to use.',
       });
     }
-    if (state.error) {
+    if (generateState.error) {
       toast.error('Uh oh! Something went wrong.', {
-        description: state.error,
+        description: generateState.error,
       });
     }
-  }, [state, onContentChange]);
+  }, [generateState, onContentChange]);
+
+  const handleGenerate = useCallback(async () => {
+    await doGenerate(prompt);
+  }, [doGenerate, prompt]);
 
   const { results, variables } = useMemo(() => evaluateNotebook(content), [content]);
 
@@ -119,7 +107,6 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                     </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
-                    <form action={formAction}>
                         <DialogHeader>
                         <DialogTitle>Generate Calculator Note</DialogTitle>
                         <DialogDescription>
@@ -133,16 +120,18 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                             </Label>
                             <Input
                             id="prompt"
-                            name="prompt"
-                            defaultValue="A trip with friends to split expenses"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
                             className="col-span-3"
                             />
                         </div>
                         </div>
                         <DialogFooter>
-                        <GenerateButton />
+                        <Button onClick={handleGenerate} disabled={generateState.isPending}>
+                            {generateState.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Generate
+                        </Button>
                         </DialogFooter>
-                    </form>
                     </DialogContent>
                 </Dialog>
                 </div>

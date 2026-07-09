@@ -2,11 +2,11 @@
 
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
-import { useFormStatus } from 'react-dom';
 import { useAppContext } from '@/context/app-provider';
+import { useAiContext } from '@/context/ai-provider';
 import { MarkdownNote } from '@/components/markdown-note';
 import { RichTextNote } from '@/components/rich-text-note';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,7 @@ import html2canvas from 'html2canvas';
 import { formatDistanceToNow } from 'date-fns';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { NoteHistorySheet } from '@/components/note-history-sheet';
+import { useAiAction } from '@/hooks/use-ai-action';
 
 const CalculatorNote = dynamic(
   () => import('@/components/calculator-note').then(mod => mod.CalculatorNote),
@@ -71,36 +72,6 @@ const noteComponentMap = {
   richtext: RichTextNote,
 };
 
-function AiSuggestButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button size="sm" type="submit" disabled={pending}>
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            Suggest Tags
-        </Button>
-    )
-}
-
-function ListenButton() {
-    const { pending } = useFormStatus();
-    return (
-         <Button variant="outline" size="sm" type="submit" disabled={pending}>
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
-            Listen
-        </Button>
-    )
-}
-
-function SummarizeButton() {
-    const { pending } = useFormStatus();
-    return (
-        <Button variant="outline" size="sm" type="submit" disabled={pending}>
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
-            Summarize
-        </Button>
-    )
-}
-
 
 export default function NotePage() {
     const params = useParams();
@@ -119,66 +90,59 @@ export default function NotePage() {
         handleMoveNote,
         handleCopyNote,
         handleRestoreVersion,
-        aiTagAction, 
-        aiTagState,
-        aiTtsAction,
-        aiTtsState,
-        aiSummaryAction,
-        aiSummaryState,
         isDataLoaded,
-        isAiEnabled,
     } = useAppContext();
+
+    const { isAiEnabled, summarize, suggestTags, textToSpeech } = useAiContext();
 
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
     const [isCopyDialogOpen, setCopyDialogOpen] = useState(false);
     const [isHistorySheetOpen, setHistorySheetOpen] = useState(false);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const ttsFormRef = useRef<HTMLFormElement>(null);
-    const lastTtsTimestamp = useRef<number | undefined>();
-    const lastSummaryTimestamp = useRef<number | undefined>();
-    const lastTagTimestamp = useRef<number | undefined>();
+    const [summaryState, doSummarize] = useAiAction<string>(summarize);
+    const [ttsState, doTTS] = useAiAction<string>(textToSpeech);
+    const [tagSuggestState, doSuggestTags] = useAiAction<string[]>(suggestTags);
+    const [isTagsPending, setTagsPending] = useState(false);
+    const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
 
-
-    // Directly use the note from context. This is the single source of truth.
     const activeNote = useMemo(() => getNoteById(noteId), [getNoteById, noteId]);
 
-    // Redirect if note is not found after data has finished loading.
     useEffect(() => {
         if (isDataLoaded && !activeNote) {
             router.push('/');
         }
     }, [isDataLoaded, activeNote, router]);
 
-    // Handle state changes from the TTS action
     useEffect(() => {
-        if (aiTtsState.timestamp && aiTtsState.timestamp !== lastTtsTimestamp.current) {
-            if (aiTtsState.audioData) {
-                setAudioUrl(aiTtsState.audioData);
-                ttsFormRef.current?.reset();
-            }
-            lastTtsTimestamp.current = aiTtsState.timestamp;
+        if (ttsState.data) {
+            setAudioUrl(ttsState.data);
         }
-    }, [aiTtsState]);
+    }, [ttsState]);
 
-    // Handle state changes from the Summarization action
     useEffect(() => {
-        if (aiSummaryState.timestamp && aiSummaryState.timestamp !== lastSummaryTimestamp.current) {
-            if (aiSummaryState.summary && activeNote) {
-                handleUpdateSummary(activeNote.id, aiSummaryState.summary);
-            }
-            lastSummaryTimestamp.current = aiSummaryState.timestamp;
+        if (summaryState.data && activeNote) {
+            handleUpdateSummary(activeNote.id, summaryState.data);
         }
-    }, [aiSummaryState, activeNote, handleUpdateSummary]);
-    
-    // Handle state changes from the Tag suggestion action
-    useEffect(() => {
-        // Prevent updates if the timestamp is the same
-        if (aiTagState.timestamp && aiTagState.timestamp !== lastTagTimestamp.current) {
-            lastTagTimestamp.current = aiTagState.timestamp;
-        }
-    }, [aiTagState]);
+    }, [summaryState, activeNote, handleUpdateSummary]);
 
+    const handleSuggestTags = useCallback(async () => {
+        if (!activeNote) return;
+        setTagsPending(true);
+        const tags = await doSuggestTags(activeNote.content, activeNote.tags);
+        if (tags) setSuggestedTags(tags);
+        setTagsPending(false);
+    }, [activeNote, doSuggestTags]);
+
+    const handleSummarize = useCallback(async () => {
+        if (!activeNote) return;
+        await doSummarize(activeNote.content, activeNote.type);
+    }, [activeNote, doSummarize]);
+
+    const handleTTS = useCallback(async () => {
+        if (!activeNote) return;
+        await doTTS(activeNote.content);
+    }, [activeNote, doTTS]);
 
     const breadcrumbs = useMemo(() => {
         if (!activeNote) return [];
@@ -436,7 +400,7 @@ export default function NotePage() {
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-80">
-                                <form action={aiTagAction} className="space-y-4">
+                                <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="tags-input">Edit Tags</Label>
                                         <p className="text-sm text-muted-foreground">Separate tags with a comma.</p>
@@ -447,28 +411,27 @@ export default function NotePage() {
                                         />
                                     </div>
                                     {isAiEnabled && (
-                                        <>
-                                            <input type="hidden" name="noteContent" value={activeNote.content} />
-                                            <input type="hidden" name="existingTags" value={activeNote.tags.join(',')} />
-                                            <div className="flex flex-col space-y-2">
-                                                <AiSuggestButton />
-                                                {aiTagState.suggestedTags && aiTagState.suggestedTags.length > 0 && aiTagState.timestamp === lastTagTimestamp.current && (
-                                                    <div className="space-y-2">
-                                                        <p className="text-sm font-medium">Suggestions:</p>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {aiTagState.suggestedTags.map(tag => (
-                                                                <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
-                                                                    <PlusCircle className="mr-2 size-3" />
-                                                                    {tag}
-                                                                </Button>
-                                                            ))}
-                                                        </div>
+                                        <div className="flex flex-col space-y-2">
+                                            <Button size="sm" variant="outline" onClick={handleSuggestTags} disabled={tagSuggestState.isPending || isTagsPending}>
+                                                {tagSuggestState.isPending || isTagsPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                                                Suggest Tags
+                                            </Button>
+                                            {suggestedTags.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium">Suggestions:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {suggestedTags.map(tag => (
+                                                            <Button type="button" key={tag} size="sm" variant="outline" onClick={() => onUpdateTags([...activeNote.tags, tag])}>
+                                                                <PlusCircle className="mr-2 size-3" />
+                                                                {tag}
+                                                            </Button>
+                                                        ))}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
-                                </form>
+                                </div>
                             </PopoverContent>
                         </Popover>
                     </div>
@@ -477,19 +440,32 @@ export default function NotePage() {
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         {isAiEnabled && activeNote.type !== 'calculator' && (
                             <>
-                                <form action={aiSummaryAction}>
-                                    <input type="hidden" name="noteContent" value={activeNote.content} />
-                                    <input type="hidden" name="noteType" value={activeNote.type} />
-                                    <SummarizeButton />
-                                </form>
-                                <form action={aiTtsAction} ref={ttsFormRef}>
-                                    <input type="hidden" name="noteContent" value={activeNote.content} />
-                                    <input type="hidden" name="noteType" value={activeNote.type} />
-                                    <ListenButton />
-                                </form>
+                                <Button variant="outline" size="sm" onClick={handleSummarize} disabled={summaryState.isPending}>
+                                    {summaryState.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BrainCircuit className="mr-2 h-4 w-4" />}
+                                    Summarize
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={handleTTS} disabled={ttsState.isPending}>
+                                    {ttsState.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Volume2 className="mr-2 h-4 w-4" />}
+                                    Listen
+                                </Button>
                             </>
                         )}
-                        <Button variant="default" size="sm">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: activeNote?.title,
+                                text: activeNote?.content,
+                                url: window.location.href,
+                              }).catch(() => {});
+                            } else {
+                              navigator.clipboard.writeText(window.location.href);
+                              toast.success('Link copied to clipboard');
+                            }
+                          }}
+                        >
                             <Share className="mr-2 size-4" />
                             Share
                         </Button>

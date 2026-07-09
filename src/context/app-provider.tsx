@@ -6,9 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Folder, Note, ActionHistory, ActionDetail, NoteVersion, UserSettings } from '@/lib/data';
 import { getInitialData, defaultSettings } from '@/lib/data';
 import { toast } from 'sonner';
-import { suggestTagsAction, type SuggestTagsState, textToSpeechAction, type TextToSpeechState, summarizeNoteAction, type SummarizeNoteState } from '@/app/actions';
 import type { Active, Over } from '@dnd-kit/core';
-import { env } from '@/lib/env';
 
 interface AppContextType {
   folders: Folder[];
@@ -16,7 +14,6 @@ interface AppContextType {
   trashedNotes: Note[];
   trashedFolders: Folder[];
   isDataLoaded: boolean;
-  isAiEnabled: boolean;
   actionHistory: ActionHistory[];
   settings: UserSettings;
   getNoteById: (id: string) => Note | undefined;
@@ -47,12 +44,6 @@ interface AppContextType {
   handleUpdateSettings: (newSettings: Partial<UserSettings>) => void;
   handleExportData: () => string;
   handleImportData: (jsonString: string) => { notes: Note[], folders: Folder[] };
-  aiTagState: SuggestTagsState;
-  aiTagAction: (payload: FormData) => void;
-  aiTtsState: TextToSpeechState;
-  aiTtsAction: (payload: FormData) => void;
-  aiSummaryState: SummarizeNoteState;
-  aiSummaryAction: (payload: FormData) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -64,11 +55,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const lastDeletedNote = useRef<Note | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const isAiEnabled = env.isAiEnabled;
-
-  const [aiTagState, aiTagAction] = React.useActionState<SuggestTagsState, FormData>(suggestTagsAction, { suggestedTags: [], error: null });
-  const [aiTtsState, aiTtsAction] = React.useActionState<TextToSpeechState, FormData>(textToSpeechAction, { audioData: null, error: null });
-  const [aiSummaryState, aiSummaryAction] = React.useActionState<SummarizeNoteState, FormData>(summarizeNoteAction, { summary: null, error: null });
 
   const logAction = useCallback((
     entityType: 'note' | 'folder',
@@ -145,33 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [allNotes, allFolders, actionHistory, settings, isDataLoaded]);
 
-   useEffect(() => {
-    if(aiTagState.error && aiTagState.timestamp) {
-        toast.error("AI Suggestion Failed", {
-            description: aiTagState.error,
-        })
-    }
-  }, [aiTagState]);
-
-  useEffect(() => {
-    if(aiTtsState.error && aiTtsState.timestamp) {
-        toast.error("AI Text-to-Speech Failed", {
-            description: aiTtsState.error,
-        })
-    }
-  }, [aiTtsState]);
-
-  useEffect(() => {
-    if (aiSummaryState.error && aiSummaryState.timestamp) {
-      toast.error('AI Summarization Failed', {
-        description: aiSummaryState.error,
-      });
-    } else if (aiSummaryState.summary && aiSummaryState.timestamp) {
-      toast.success('Summary Generated', {
-        description: 'The AI summary has been created successfully.',
-      });
-    }
-  }, [aiSummaryState]);
+   
   
   const notes = useMemo(() => allNotes.filter(n => !n.isTrashed), [allNotes]);
   const folders = useMemo(() => allFolders.filter(f => !f.isTrashed), [allFolders]);
@@ -655,7 +615,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     trashedNotes,
     trashedFolders,
     isDataLoaded,
-    isAiEnabled,
     actionHistory,
     settings,
     getNoteById,
@@ -686,18 +645,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleUpdateSettings,
     handleExportData,
     handleImportData,
-    aiTagState,
-    aiTagAction,
-    aiTtsState,
-    aiTtsAction,
-    aiSummaryState,
-    aiSummaryAction,
   }), [
-    folders, notes, trashedNotes, trashedFolders, isDataLoaded, isAiEnabled, actionHistory, settings, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
+    folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, settings, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
     handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
     handleRestoreVersion, handleUpdateSettings, handleExportData, handleImportData,
-    aiTagState, aiTagAction, aiTtsState, aiTtsAction, aiSummaryState, aiSummaryAction
   ]);
 
 

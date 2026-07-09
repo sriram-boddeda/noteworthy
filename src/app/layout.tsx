@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppProvider } from '@/context/app-provider';
+import { AiProvider } from '@/context/ai-provider';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -35,10 +36,12 @@ export default function RootLayout({
         >
           <SidebarProvider>
             <AppProvider>
-              <AppSidebar />
-              <SidebarInset>
-                {children}
-              </SidebarInset>
+              <AiProvider>
+                <AppSidebar />
+                <SidebarInset>
+                  {children}
+                </SidebarInset>
+              </AiProvider>
             </AppProvider>
           </SidebarProvider>
           <Toaster

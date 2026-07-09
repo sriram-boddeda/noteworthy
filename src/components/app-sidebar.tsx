@@ -38,7 +38,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
 import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, BookOpen, Settings } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -140,7 +139,7 @@ function ItemPreview({ item, type }: { item: Note | FolderType, type: 'note' | '
     return (
         <div className="flex items-center gap-2 rounded-md bg-sidebar p-2 text-sidebar-foreground shadow-lg">
             {icon}
-            <span className="text-sm font-medium">{item.name || (item as Note).title}</span>
+            <span className="text-sm font-medium">{type === 'folder' ? (item as FolderType).name : (item as Note).title}</span>
         </div>
     );
 }
@@ -317,12 +316,8 @@ export function AppSidebar() {
           </div>
         </SidebarContent>
         <SidebarFooter>
-          <div className="flex h-14 items-center gap-2 p-2">
-            <Skeleton className="size-8 shrink-0 rounded-full" />
-            <div className="flex flex-col gap-1">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-3 w-24" />
-            </div>
+          <div className="flex h-14 items-center justify-end gap-2 p-2">
+            <Skeleton className="h-9 w-9 rounded-md" />
           </div>
         </SidebarFooter>
       </Sidebar>
@@ -546,36 +541,21 @@ export function AppSidebar() {
                   </div>
               </div>
             </SidebarContent>
-            <SidebarFooter>
-                <SidebarSeparator className="my-1 mx-2" />
-                <SidebarMenu>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton
-                            asChild
-                            isActive={pathname === '/settings'}
-                            className={cn("font-semibold", pathname === '/settings' && "bg-sidebar-accent text-sidebar-accent-foreground")}
-                        >
-                            <Link href="/settings">
-                                <Settings />
-                                <span>Settings</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-                <div className="flex h-14 items-center justify-between gap-2 p-2">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        <Avatar className="size-8 shrink-0">
-                            <AvatarImage src="https://placehold.co/40x40" alt="User" data-ai-hint="profile picture"/>
-                            <AvatarFallback>U</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">User</span>
-                            <span className="text-xs text-muted-foreground">user@example.com</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center">
-                        <ThemeToggle />
-                    </div>
+            <SidebarFooter className="p-2">
+                <SidebarSeparator className="mb-2" />
+                <div className="flex items-center justify-between">
+                    <Link
+                        href="/settings"
+                        className={cn(
+                            "flex items-center justify-center size-9 rounded-full transition-colors",
+                            pathname === '/settings'
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                        )}
+                    >
+                        <Settings className="h-4 w-4" />
+                    </Link>
+                    <ThemeToggle />
                 </div>
             </SidebarFooter>
         </Sidebar>
