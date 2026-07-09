@@ -90,15 +90,24 @@ const components: Components = {
     );
   },
   table: (props) => (
-    <div className="my-4 overflow-x-auto rounded-md border">
-      <table className="w-full border-collapse" {...props} />
+    <div className="not-prose my-4 overflow-x-auto rounded-lg border border-border">
+      <table className="min-w-full border-collapse" {...props} />
     </div>
   ),
+  thead: (props) => (
+    <thead className="bg-muted/50" {...props} />
+  ),
+  tbody: (props) => (
+    <tbody className="[&_tr:last-child]:border-b-0" {...props} />
+  ),
+  tr: (props) => (
+    <tr className="border-b border-border" {...props} />
+  ),
   th: (props) => (
-    <th className="border-b px-4 py-2 text-left font-semibold" {...props} />
+    <th className="px-4 py-2.5 text-left text-sm font-semibold whitespace-nowrap" {...props} />
   ),
   td: (props) => (
-    <td className="border-b px-4 py-2 align-top" {...props} />
+    <td className="px-4 py-2.5 text-sm" {...props} />
   ),
 };
 
