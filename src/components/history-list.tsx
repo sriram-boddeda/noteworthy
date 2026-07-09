@@ -57,7 +57,7 @@ const getActionIcon = (item: ActionHistory) => {
 
   return (
     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
-      {React.cloneElement(icon as React.ReactElement, { className: cn((icon as React.ReactElement).props.className, "size-4")})}
+      {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: cn((icon as React.ReactElement<{ className?: string }>).props.className, "size-4")})}
     </div>
   );
 };
