@@ -487,45 +487,45 @@ export function AppSidebar() {
                   return (
                   <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
                     <AccordionItem value={folder.id} className="border-none relative group/folder-item">
-                        <Link href={`/folder/${folder.id}`} className="block">
-                            <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
-                                <AccordionTrigger 
-                                    className={cn(
-                                        "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
-                                        isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                                    )}
-                                >
-                                    <div className="flex flex-1 items-center gap-2">
-                                        <Folder className="size-4" />
-                                        <span className="truncate">{folder.name}</span>
-                                    </div>
-                                </AccordionTrigger>
-                            </Draggable>
-                        </Link>
-                      <AccordionContent className="pt-1">
-                        <SidebarMenu>
-                          {folder.notes.map((note) => {
-                             const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                             const isNoteActive = pathname === `/note/${note.id}`;
-                             return (
-                               <SidebarMenuItem key={note.id}>
-                                  <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
-                                    <SidebarMenuButton
-                                     asChild
-                                     isActive={isNoteActive}
-                                     className={cn("pl-7", isNoteActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
-                                   >
-                                     <Link href={`/note/${note.id}`}>
-                                         {icon}
-                                         <span>{note.title}</span>
-                                     </Link>
-                                 </SidebarMenuButton>
-                                 </Draggable>
-                               </SidebarMenuItem>
-                             )
-                          })}
-                        </SidebarMenu>
-                      </AccordionContent>
+                        <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
+                            <AccordionTrigger 
+                                className={cn(
+                                    "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
+                                    isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+                                )}
+                            >
+                                <div className="flex flex-1 items-center gap-2">
+                                    <Folder className="size-4" />
+                                    <span className="truncate cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); router.push(`/folder/${folder.id}`); }}>{folder.name}</span>
+                                </div>
+                            </AccordionTrigger>
+                        </Draggable>
+                      {folder.notes.length > 0 && (
+                        <AccordionContent className="pt-1">
+                          <SidebarMenu>
+                            {folder.notes.map((note) => {
+                               const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
+                               const isNoteActive = pathname === `/note/${note.id}`;
+                               return (
+                                 <SidebarMenuItem key={note.id}>
+                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
+                                      <SidebarMenuButton
+                                       asChild
+                                       isActive={isNoteActive}
+                                       className={cn("pl-7", isNoteActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
+                                     >
+                                       <Link href={`/note/${note.id}`}>
+                                           {icon}
+                                           <span>{note.title}</span>
+                                       </Link>
+                                   </SidebarMenuButton>
+                                   </Draggable>
+                                 </SidebarMenuItem>
+                               )
+                            })}
+                          </SidebarMenu>
+                        </AccordionContent>
+                      )}
                     </AccordionItem>
                   </Droppable>
                 )})}
