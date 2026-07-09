@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -14,6 +15,17 @@ import { Mermaid } from './mermaid';
 import { CopyButton } from './copy-button';
 import { Textarea } from '@/components/ui/textarea';
 import type { Components } from 'react-markdown';
+
+function extractCodeText(children: React.ReactNode): string {
+  let text = '';
+  React.Children.forEach(children, (child) => {
+    if (typeof child === 'string') text += child;
+    else if (child && typeof child === 'object' && 'props' in child) {
+      text += extractCodeText((child as any).props.children);
+    }
+  });
+  return text.replace(/\n$/, '');
+}
 
 function splitMermaidBlocks(content: string) {
   const parts: { type: 'markdown' | 'mermaid'; content: string }[] = [];
@@ -54,18 +66,25 @@ const components: Components = {
         </code>
       );
     }
-    const match = /language-(\w+)/.exec(className || '');
-    const codeText = String(children).replace(/\n$/, '');
+    return (
+      <code className={`font-code ${className || ''}`} {...rest}>
+        {children}
+      </code>
+    );
+  },
+  pre: (props) => {
+    const { children, ...rest } = props;
+    const codeChild = Array.isArray(children) ? children[0] : children;
+    const codeText = extractCodeText(codeChild);
+    const lang = (codeChild as any)?.props?.className?.match(/language-(\w+)/)?.[1];
     return (
       <div className="not-prose my-4 overflow-hidden rounded-lg bg-[#282c34] text-sm">
         <div className="flex items-center justify-between bg-gray-700/50 px-4 py-1.5 text-xs text-gray-400">
-          <span>{match ? match[1] : 'code'}</span>
+          <span>{lang || 'code'}</span>
           <CopyButton text={codeText} />
         </div>
-        <pre className="p-4 overflow-x-auto !bg-transparent !border-0">
-          <code className={`font-code ${className || ''}`} {...rest}>
-            {children}
-          </code>
+        <pre className="p-4 overflow-x-auto" {...rest}>
+          {children}
         </pre>
       </div>
     );
