@@ -1,86 +1,127 @@
-
 'use client';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkEmoji from 'remark-emoji';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import rehypeHighlight from 'rehype-highlight';
 import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/github-dark.css';
 
+import { Mermaid } from './mermaid';
+import { CopyButton } from './copy-button';
 import { Textarea } from '@/components/ui/textarea';
+import type { Components } from 'react-markdown';
 
-interface MarkdownNoteProps {
-  content: string;
-  onContentChange: (newContent: string) => void;
+function splitMermaidBlocks(content: string) {
+  const parts: { type: 'markdown' | 'mermaid'; content: string }[] = [];
+  let lastIndex = 0;
+  const regex = /```mermaid\s*\n([\s\S]*?)```/g;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'markdown', content: content.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'mermaid', content: match[1].trim() });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push({ type: 'markdown', content: content.slice(lastIndex) });
+  }
+
+  return parts;
 }
 
+const components: Components = {
+  h1: (props) => <h1 className="border-b pb-2 font-headline" {...props} />,
+  h2: (props) => <h2 className="border-b pb-2 font-headline" {...props} />,
+  h3: (props) => <h3 className="border-b pb-1 font-headline" {...props} />,
+  blockquote: (props) => (
+    <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground" {...props} />
+  ),
+  a: (props) => <a className="text-primary hover:underline" {...props} />,
+  code: (props) => {
+    const { className, children, ...rest } = props;
+    const isInline = !className;
+    if (isInline) {
+      return (
+        <code className="bg-muted text-muted-foreground rounded-sm px-1.5 py-1 font-mono text-xs" {...rest}>
+          {children}
+        </code>
+      );
+    }
+    const match = /language-(\w+)/.exec(className || '');
+    const codeText = String(children).replace(/\n$/, '');
+    return (
+      <div className="not-prose my-4 overflow-hidden rounded-lg bg-[#282c34] text-sm">
+        <div className="flex items-center justify-between bg-gray-700/50 px-4 py-1.5 text-xs text-gray-400">
+          <span>{match ? match[1] : 'code'}</span>
+          <CopyButton text={codeText} />
+        </div>
+        <pre className="p-4 overflow-x-auto !bg-transparent !border-0">
+          <code className={`font-code ${className || ''}`} {...rest}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  },
+  table: (props) => (
+    <div className="my-4 overflow-x-auto rounded-md border">
+      <table className="w-full border-collapse" {...props} />
+    </div>
+  ),
+  th: (props) => (
+    <th className="border-b px-4 py-2 text-left font-semibold" {...props} />
+  ),
+  td: (props) => (
+    <td className="border-b px-4 py-2 align-top" {...props} />
+  ),
+};
+
 export function MarkdownNote({ content, onContentChange }: MarkdownNoteProps) {
+  const blocks = splitMermaidBlocks(content);
+
   return (
     <div className="min-h-[calc(100vh-12rem)] overflow-hidden bg-card border rounded-lg">
       <div className="grid grid-cols-1 md:grid-cols-2 h-full">
         {/* Editor Pane */}
         <div className="w-full relative h-full">
           <Textarea
-            placeholder="Type your Markdown and LaTeX here..."
+            placeholder="Type your Markdown, LaTeX, and Mermaid diagrams here..."
             value={content}
             onChange={(e) => onContentChange(e.target.value)}
             className="h-full min-h-[50vh] md:min-h-[calc(100vh-12rem)] border-0 resize-none focus-visible:ring-0 p-6 font-mono text-sm leading-6 bg-card"
           />
         </div>
-        
+
         {/* Preview Pane */}
         <div className="w-full p-6 prose prose-sm dark:prose-invert max-w-none overflow-auto min-h-[50vh] md:min-h-full bg-muted/20 border-t md:border-t-0 md:border-l">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex, rehypeRaw]}
-            components={{
-              h1: ({node, ...props}) => <h1 className="border-b pb-2 font-headline" {...props} />,
-              h2: ({node, ...props}) => <h2 className="border-b pb-2 font-headline" {...props} />,
-              h3: ({node, ...props}) => <h3 className="border-b pb-1 font-headline" {...props} />,
-              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary/50 pl-4 italic text-muted-foreground" {...props} />,
-              a: ({node, ...props}) => <a className="text-primary hover:underline" {...props} />,
-              code: ({node, inline, className, children, ...props}) => {
-                if (inline) {
-                   return (
-                    <code className="bg-muted text-muted-foreground rounded-sm px-1.5 py-1 font-mono text-xs" {...props}>
-                        {children}
-                    </code>
-                   );
-                }
-                const match = /language-(\w+)/.exec(className || '');
-                return (
-                  <div className="not-prose my-4 overflow-hidden rounded-lg bg-[#282c34] text-sm">
-                    {match && (
-                        <div className="flex items-center justify-between bg-gray-700/50 px-4 py-1.5 text-xs text-gray-400">
-                            <span>{match[1]}</span>
-                        </div>
-                    )}
-                    <pre className="p-4 overflow-x-auto">
-                      <code className="!bg-transparent font-code" {...props}>
-                          {children}
-                      </code>
-                    </pre>
-                  </div>
-                );
-              },
-              table: ({node, ...props}) => (
-                <div className="my-4 overflow-x-auto rounded-md border">
-                    <table className="w-full border-collapse" {...props} />
-                </div>
-              ),
-              th: ({node, ...props}) => (
-                <th className="border-b px-4 py-2 text-left font-semibold" {...props} />
-              ),
-              td: ({node, ...props}) => (
-                <td className="border-b px-4 py-2 align-top" {...props} />
-              ),
-            }}
-          >
-            {content}
-          </ReactMarkdown>
+          {blocks.map((block, i) =>
+            block.type === 'mermaid' ? (
+              <Mermaid key={i} chart={block.content} />
+            ) : (
+              <ReactMarkdown
+                key={i}
+                remarkPlugins={[remarkGfm, remarkMath, remarkEmoji]}
+                rehypePlugins={[rehypeKatex, rehypeRaw, rehypeHighlight]}
+                components={components}
+              >
+                {block.content}
+              </ReactMarkdown>
+            )
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+interface MarkdownNoteProps {
+  content: string;
+  onContentChange: (newContent: string) => void;
 }
