@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
@@ -12,8 +11,6 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  useDraggable,
-  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
   type Active,
@@ -37,112 +34,44 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button';
 import { NoteworthyIcon } from '@/components/icons';
-import { FileText, Plus, Folder, Tag, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, Lock, BookOpen, Settings } from 'lucide-react';
+import { FileText, Plus, Folder, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, BookOpen, Settings, Pencil, Copy, Move } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { noteTypeOptions, type Note, type Folder as FolderType } from '@/lib/data';
+import { Draggable, Droppable, ItemPreview, type DraggableData, type DragKind } from '@/components/dnd';
+import { useActiveDragIds } from '@/hooks/use-active-drag-ids';
 import { Skeleton } from './ui/skeleton';
 import { ThemeToggle } from './theme-toggle';
+import { NoteHistorySheet } from './note-history-sheet';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 
-// Reusable Draggable component
-function Draggable({ id, data, children }: { id: string, data: Record<string, any>, children: React.ReactNode }) {
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data });
-    const style = {
-        // Opacity is managed by a class for better transition control
-    };
-    return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={cn(isDragging && 'opacity-50')}>
-            {children}
-        </div>
-    );
-}
+// Draggable, Droppable, and ItemPreview now live in @/components/dnd so they
+// can be reused and tested in isolation.
 
-// Reusable Droppable component
-function Droppable({
-  id,
-  children,
-  className,
-  activeDragType,
-}: {
-  id: string
-  children: React.ReactNode
-  className?: string
-  activeDragType?: 'note' | 'folder'
-}) {
-  const { isOver, setNodeRef } = useDroppable({ id });
-
-  const isDraggingNote = activeDragType === 'note';
-  const isDraggingFolder = activeDragType === 'folder';
-
-  const isFolderTarget = id.startsWith('folder-');
-  const isHomeTarget = id === 'home-dropzone';
-  const isTrashTarget = id === 'trash-dropzone';
-
-  let showHighlight = false;
-  let showLock = false;
-
-  if (isOver) {
-    // Highlight trash for anything
-    if (isTrashTarget) {
-      showHighlight = true;
-    }
-    // Highlight home and folders only for notes
-    if ((isHomeTarget || isFolderTarget) && isDraggingNote) {
-      showHighlight = true;
-    }
-    // Lock folders when dragging a folder over them
-    if (isFolderTarget && isDraggingFolder) {
-      showLock = true;
-    }
-    // Lock home when dragging a folder over it
-    if (isHomeTarget && isDraggingFolder) {
-        showLock = true;
-    }
-  }
-  
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        className,
-        'relative transition-colors duration-200',
-        showHighlight && 'rounded-md bg-primary/10'
-      )}
-    >
-      {children}
-      {showLock && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-destructive/20 backdrop-blur-sm">
-          <Lock className="size-6 text-destructive" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-// Item Preview for DragOverlay
-function ItemPreview({ item, type }: { item: Note | FolderType, type: 'note' | 'folder' }) {
-    const icon = type === 'note'
-        ? noteTypeOptions.find((o) => o.value === (item as Note).type)?.icon ?? <FileText className="size-4" />
-        : <Folder className="size-4" />;
-
-    return (
-        <div className="flex items-center gap-2 rounded-md bg-sidebar p-2 text-sidebar-foreground shadow-lg">
-            {icon}
-            <span className="text-sm font-medium">{type === 'folder' ? (item as FolderType).name : (item as Note).title}</span>
-        </div>
-    );
-}
 
 const parseSearchQuery = (query: string) => {
   const textParts: string[] = [];
@@ -176,17 +105,419 @@ const parseSearchQuery = (query: string) => {
 };
 
 
+// =============================================================================
+// Per-row components
+// =============================================================================
+//
+// Each row component owns its own lightweight state (`usePathname`,
+// `useRouter`, `useAppContext`) so AppSidebar's hook count stays constant
+// regardless of how many sibling rows exist (this prevents the
+// "Rendered more hooks than during the previous render" rules-of-hooks
+// error that the previous implementation triggered when AccordionItems
+// collapsed). The interaction model is: single click navigates, right-click
+// (or two-finger trackpad tap) opens the row's context menu via the
+// controlled `open={menuOpen}` Radix DropdownMenu.
+
+/**
+ * Discriminated payload identifying which row's context menu is open.
+ *
+ * Notes are keyed by their FULL ROW id (`rowKey`) — the per-source-prefixed
+ * dragId string (`recent-note-{id}`, `root-note-{id}`, or
+ * `folder-{fid}-note-{nid}`) — rather than just `note.id`. The same note
+ * can render in multiple sidebar sections concurrently (recents AND root
+ * AND/OR inside an expanded folder), and the previous `id`-only scheme
+ * caused every duplicate row to open its DropdownMenu simultaneously,
+ * producing stacked popovers where only one captured clicks correctly.
+ *
+ * Folders and trash are keyed by `id` / discriminator alone, because each
+ * is rendered at most once in the sidebar (one AccordionItem per folder,
+ * one Trash row total).
+ */
+type OpenMenu =
+  | { kind: 'note'; rowKey: string }
+  | { kind: 'folder'; id: string }
+  | { kind: 'trash' }
+  | null;
+
+interface SidebarTrashRowProps {
+  menuOpen: boolean;
+  /** Force-open this row's menu (called from the row's `onContextMenu`). */
+  onOpenMenu: () => void;
+  /** React to Radix's onOpenChange (click outside, Esc, programmatic close). */
+  onOpenChange: (open: boolean) => void;
+  trashedCount: number;
+  /** Parent-provided: opens the confirm-Empty-Trash dialog. */
+  onRequestEmptyTrash: () => void;
+}
+
+function SidebarTrashRow({
+  menuOpen,
+  onOpenMenu,
+  onOpenChange,
+  trashedCount,
+  onRequestEmptyTrash,
+}: SidebarTrashRowProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isActive = pathname === '/trash';
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={isActive}
+        onClick={(e) => {
+          // macOS trackpad "Tap to click" + "Secondary click with two
+          // fingers" can fire BOTH `click` and `contextmenu` from the same
+          // gesture. Ignore any non-primary button so right-click / two-finger
+          // tap opens the menu without also navigating.
+          if (e.button !== 0) return;
+          router.push('/trash');
+        }}
+        onContextMenu={(e) => {
+          // Suppress the OS / browser context menu and open our Radix
+          // dropdown instead.
+          e.preventDefault();
+          onOpenMenu();
+        }}
+        className={cn(
+          'font-semibold select-none',
+          isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+        )}
+      >
+        <Trash2 />
+        <span>Trash</span>
+        {trashedCount > 0 && (
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+            {trashedCount}
+          </span>
+        )}
+      </SidebarMenuButton>
+      <DropdownMenu open={menuOpen} onOpenChange={onOpenChange}>
+        <DropdownMenuTrigger
+          // Anchor used by Radix Popper for floating-content positioning.
+          // `absolute inset-0` fills the row (and the surrounding SidebarMenuItem
+          // already has `position: relative`); `opacity-0 pointer-events-none`
+          // keeps it invisible AND ensures all clicks pass through to the
+          // SidebarMenuButton above (right-click is handled on the button).
+          className="absolute inset-0 opacity-0 pointer-events-none"
+          tabIndex={-1}
+          aria-label="Trash actions"
+        />
+        <DropdownMenuContent side="right" align="start" className="w-48">
+          <DropdownMenuItem
+            onSelect={onRequestEmptyTrash}
+            disabled={trashedCount === 0}
+            className="text-destructive focus:bg-destructive/10 focus:text-destructive data-[disabled]:opacity-50 data-[disabled]:pointer-events-none"
+          >
+            <Trash2 className="mr-2 size-4" />
+            Empty Trash
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  );
+}
+
+interface SidebarNoteRowProps {
+  note: Note;
+  /** Per-source-prefixed unique drag id (e.g. `recent-note-{id}`, `folder-{fid}-note-{nid}`). */
+  dragId: string;
+  /** Active note drag id, used by Draggable to dim clones. */
+  activeNoteId: string | null;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
+  onOpenChange: (open: boolean) => void;
+  /** Parent-provided: opens the version-history sheet for this note. */
+  onRequestVersionHistory: (note: Note) => void;
+  /** Extra classes to merge onto the SidebarMenuButton (e.g. `pl-7` for in-folder rows). */
+  extraClassName?: string;
+}
+
+function SidebarNoteRow({
+  note,
+  dragId,
+  activeNoteId,
+  menuOpen,
+  onOpenMenu,
+  onOpenChange,
+  onRequestVersionHistory,
+  extraClassName,
+}: SidebarNoteRowProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  // Pulled in here so the row can render a "Move to..." submenu of available
+  // folders and dispatch Create-Copy without prop-drilling through AppSidebar.
+  const {
+    handleDeleteNote,
+    handleUndoDelete,
+    handleCopyNote,
+    handleMoveNote,
+    folders,
+  } = useAppContext();
+  const isActive = pathname === `/note/${note.id}`;
+  const icon =
+    noteTypeOptions.find((o) => o.value === note.type)?.icon ??
+    <FileText className="size-4" />;
+  return (
+    <SidebarMenuItem>
+      <Draggable
+        id={dragId}
+        data={{ type: 'note', item: note }}
+        activeType="note"
+        activeId={activeNoteId}
+      >
+        <SidebarMenuButton
+          isActive={isActive}
+          onClick={(e) => {
+            if (e.button !== 0) return;
+            router.push(`/note/${note.id}`);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onOpenMenu();
+          }}
+          className={cn(
+            extraClassName,
+            'select-none',
+            isActive && 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold',
+          )}
+        >
+          {icon}
+          <span>{note.title}</span>
+        </SidebarMenuButton>
+        <DropdownMenu open={menuOpen} onOpenChange={onOpenChange}>
+          <DropdownMenuTrigger
+            className="absolute inset-0 opacity-0 pointer-events-none"
+            tabIndex={-1}
+            aria-label={`Actions for ${note.title}`}
+          />
+          <DropdownMenuContent side="right" align="start" className="w-48">
+            <DropdownMenuItem
+              onSelect={() => {
+                // `note.folderId` is `string | null | undefined` (the `?` in
+                // data.ts makes it optional); handleCopyNote expects
+                // `string | null`, so coerce `undefined` to `null`.
+                const copy = handleCopyNote(note.id, note.folderId ?? null);
+                onOpenChange(false);
+                if (copy) router.push(`/note/${copy.id}`);
+              }}
+            >
+              <Copy className="mr-2 size-4" />
+              Create a Copy
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Move className="mr-2 size-4" />
+                Move to
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-48">
+                <DropdownMenuItem
+                  onSelect={() => {
+                    handleMoveNote(note.id, null);
+                    onOpenChange(false);
+                  }}
+                  disabled={note.folderId == null}
+                >
+                  <Home className="mr-2 size-4" />
+                  Home
+                </DropdownMenuItem>
+                {folders.map((f) => (
+                  <DropdownMenuItem
+                    key={f.id}
+                    onSelect={() => {
+                      handleMoveNote(note.id, f.id);
+                      onOpenChange(false);
+                    }}
+                    disabled={f.id === note.folderId}
+                  >
+                    <Folder className="mr-2 size-4" />
+                    {f.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem
+              onSelect={() => {
+                onOpenChange(false);
+                onRequestVersionHistory(note);
+              }}
+            >
+              <History className="mr-2 size-4" />
+              Version History
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                handleDeleteNote(note.id);
+                toast.success(`Moved "${note.title}" to Trash`, {
+                  action: { label: 'Undo', onClick: () => handleUndoDelete() },
+                });
+                onOpenChange(false);
+              }}
+              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
+              <Trash2 className="mr-2 size-4" />
+              Move to Trash
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </Draggable>
+    </SidebarMenuItem>
+  );
+}
+
+interface SidebarFolderRowProps {
+  /** Folder with its currently-filtered `notes` array already resolved by the parent. */
+  folder: FolderType & { notes: Note[] };
+  dimmedFolderId: string | null;
+  activeDragType: DragKind | undefined;
+  activeNoteId: string | null;
+  /** This folder's own menu state (parent-derived boolean). */
+  menuOpen: boolean;
+  onOpenMenu: () => void;
+  onOpenChange: (open: boolean) => void;
+  onRequestRename: (folder: FolderType) => void;
+  onRequestDelete: (folder: FolderType) => void;
+  /** Parent-provided: opens the New-Note dialog pre-targeted to this folder. */
+  onRequestNewNoteInFolder: (folder: FolderType) => void;
+  /**
+   * Shared `openMenu` discriminated-union + setter, threaded through so the
+   * inner note rows rendered inside this folder's AccordionContent can each
+   * derive their own per-note boolean + open callbacks.
+   */
+  openMenu: OpenMenu;
+  setOpenMenu: (m: OpenMenu) => void;
+  /** Forwarded so inner note rows can open the version-history sheet. */
+  onRequestVersionHistory: (note: Note) => void;
+}
+
+function SidebarFolderRow({
+  folder,
+  dimmedFolderId,
+  activeDragType,
+  activeNoteId,
+  menuOpen,
+  onOpenMenu,
+  onOpenChange,
+  onRequestRename,
+  onRequestDelete,
+  onRequestNewNoteInFolder,
+  openMenu,
+  setOpenMenu,
+  onRequestVersionHistory,
+}: SidebarFolderRowProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const isActive = pathname.startsWith(`/folder/${folder.id}`);
+  return (
+    <Droppable id={`folder-${folder.id}`} activeDragType={activeDragType}>
+      <AccordionItem value={folder.id} className="border-none relative group/folder-item">
+        <Draggable
+          id={`folder-${folder.id}`}
+          data={{ type: 'folder', item: folder }}
+          activeType="folder"
+          activeId={dimmedFolderId}
+        >
+          <AccordionTrigger
+            onClick={(e) => {
+              if (e.button !== 0) return;
+              router.push(`/folder/${folder.id}`);
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              onOpenMenu();
+            }}
+            className={cn(
+              'w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90 select-none',
+              isActive && 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground',
+            )}
+          >
+            <div className="flex flex-1 items-center gap-2">
+              <Folder className="size-4" />
+              <span className="truncate">{folder.name}</span>
+            </div>
+          </AccordionTrigger>
+          <DropdownMenu open={menuOpen} onOpenChange={onOpenChange}>
+            <DropdownMenuTrigger
+              className="absolute inset-0 opacity-0 pointer-events-none"
+              tabIndex={-1}
+              aria-label={`Actions for folder ${folder.name}`}
+            />
+            <DropdownMenuContent side="right" align="start" className="w-48">
+              <DropdownMenuItem
+                onSelect={() => {
+                  onOpenChange(false);
+                  onRequestNewNoteInFolder(folder);
+                }}
+              >
+                <FolderPlus className="mr-2 size-4" />
+                New Note in this Folder
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => { onRequestRename(folder); onOpenChange(false); }}
+              >
+                <Pencil className="mr-2 size-4" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => { onRequestDelete(folder); onOpenChange(false); }}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <Trash2 className="mr-2 size-4" />
+                Move to Trash
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Draggable>
+        {folder.notes.length > 0 && (
+          <AccordionContent className="pt-1">
+            <SidebarMenu>
+              {folder.notes.map((note) => {
+                // Per-row identity keyed by the same dragId we attach to the
+                // Draggable, so duplicate listings (recents AND inside-folder)
+                // don't open their DropdownMenu simultaneously.
+                const rowKey = `folder-${folder.id}-note-${note.id}`;
+                return (
+                  <SidebarNoteRow
+                    key={note.id}
+                    note={note}
+                    dragId={rowKey}
+                    activeNoteId={activeNoteId}
+                    menuOpen={openMenu?.kind === 'note' && openMenu.rowKey === rowKey}
+                    onOpenMenu={() => setOpenMenu({ kind: 'note', rowKey })}
+                    onOpenChange={(open) =>
+                      setOpenMenu(open ? { kind: 'note', rowKey } : null)
+                    }
+                    onRequestVersionHistory={onRequestVersionHistory}
+                    extraClassName="pl-7"
+                  />
+                );
+              })}
+            </SidebarMenu>
+          </AccordionContent>
+        )}
+      </AccordionItem>
+    </Droppable>
+  );
+}
+
+
 export function AppSidebar() {
-  const { 
-      folders, 
-      notes, 
-      getNotesByFolderId, 
-      uniqueTags, 
-      handleCreateFolder, 
-      handleCreateNote, 
-      isDataLoaded, 
+  const {
+      folders,
+      notes,
+      trashedNotes,
+      trashedFolders,
+      uniqueTags,
+      handleCreateFolder,
+      handleCreateNote,
+      handleDeleteFolder,
+      handleRenameFolder,
+      handleEmptyTrash,
+      isDataLoaded,
       recentNotes,
       handleDrop,
+      handleRestoreVersion,
       settings,
   } = useAppContext();
 
@@ -195,16 +526,33 @@ export function AppSidebar() {
 
   const [isNewFolderOpen, setNewFolderOpen] = useState(false);
   const [isNewNoteOpen, setNewNoteOpen] = useState(false);
+  /** When non-null, the New-Note dialog opens with `<Select name="folderId">` defaulting to this folder. */
+  const [newNoteFolderPrefill, setNewNoteFolderPrefill] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDragItem, setActiveDragItem] = useState<Active | null>(null);
-  const activeDragType = activeDragItem?.data.current?.type as 'note' | 'folder' | undefined;
-  
+  // See useActiveDragIds for full semantics; wires up the dim/highlight
+  // signals consumed by every Droppable / Draggable in this sidebar.
+  const { activeDragType, activeNoteId, dimmedFolderId } =
+    useActiveDragIds(activeDragItem);
+
+  // Discriminated-union state for which row's right-click menu is open.
+  // AppSidebar owns it; each row receives a per-row derived boolean +
+  // open-change callback so the discriminator shape stays here.
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+
+  // Confirmation / rename dialogs, hoisted out of the row maps so each is
+  // mounted exactly once regardless of row count.
+  const [folderToRename, setFolderToRename] = useState<FolderType | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<FolderType | null>(null);
+  const [pendingEmptyTrash, setPendingEmptyTrash] = useState(false);
+  /** When non-null, the NoteHistorySheet is open and showing this note. */
+  const [historyNote, setHistoryNote] = useState<Note | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
-  const rootNotes = useMemo(() => getNotesByFolderId(null), [getNotesByFolderId]);
   const folderIds = useMemo(() => folders.map(f => f.id), [folders]);
 
   const filteredData = useMemo(() => {
@@ -219,7 +567,7 @@ export function AppSidebar() {
             rootNotes: notes.filter(n => !n.folderId).sort((a,b) => a.title.localeCompare(b.title)),
         };
     }
-    
+
     let filteredNotes = notes;
 
     if (tags.length > 0) {
@@ -235,18 +583,18 @@ export function AppSidebar() {
       filteredNotes = filteredNotes.filter(note => note.folderId && targetFolderIds.includes(note.folderId));
     }
     if (text) {
-        filteredNotes = filteredNotes.filter(n => 
-            n.title.toLowerCase().includes(text) || 
+        filteredNotes = filteredNotes.filter(n =>
+            n.title.toLowerCase().includes(text) ||
             n.content.toLowerCase().includes(text)
         );
     }
-    
+
     const filteredRootNotes = filteredNotes.filter(n => !n.folderId);
-    
+
     const filteredFolders = folders.map(folder => ({
         ...folder,
         notes: filteredNotes.filter(n => n.folderId === folder.id),
-    })).filter(folder => 
+    })).filter(folder =>
         folder.name.toLowerCase().includes(text) || folder.notes.length > 0
     );
 
@@ -261,17 +609,18 @@ export function AppSidebar() {
     handleCreateFolder(folderName);
     setNewFolderOpen(false);
   };
-  
+
   const handleCreateNoteSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const title = formData.get('title') as string;
     const type = formData.get('type') as Note['type'];
     const folderId = formData.get('folderId') as string;
-    
+
     const newNote = handleCreateNote(title, type, folderId === 'none' ? null : folderId);
     if (newNote) {
       setNewNoteOpen(false);
+      setNewNoteFolderPrefill(null);
       router.push(`/note/${newNote.id}`);
     }
   };
@@ -285,6 +634,38 @@ export function AppSidebar() {
     handleDrop(active, over);
     setActiveDragItem(null);
   };
+
+  const handleConfirmFolderDelete = () => {
+    if (!folderToDelete) return;
+    handleDeleteFolder(folderToDelete.id, true);
+    setFolderToDelete(null);
+  };
+
+  const handleConfirmFolderRename = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!folderToRename) return;
+    const newName = (new FormData(e.currentTarget).get('newFolderName') as string) ?? '';
+    if (newName.trim()) {
+      handleRenameFolder(folderToRename.id, newName.trim());
+    }
+    setFolderToRename(null);
+  };
+
+  const handleConfirmEmptyTrash = () => {
+    handleEmptyTrash();
+    setPendingEmptyTrash(false);
+  };
+
+  /** Open the New-Note dialog prefilled with this folder. */
+  const requestNewNoteInFolder = useCallback((folder: FolderType) => {
+    setNewNoteFolderPrefill(folder.id);
+    setNewNoteOpen(true);
+  }, []);
+
+  /** Open the NoteHistorySheet for `note`. */
+  const requestVersionHistory = useCallback((note: Note) => {
+    setHistoryNote(note);
+  }, []);
 
   if (!isDataLoaded) {
     return (
@@ -323,7 +704,9 @@ export function AppSidebar() {
       </Sidebar>
     );
   }
-  
+
+  const trashedCount = trashedNotes.length + trashedFolders.length;
+
   return (
     <>
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -348,12 +731,10 @@ export function AppSidebar() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                             <DropdownMenuItem onSelect={() => setNewNoteOpen(true)}>
-                                <PlusCircle className="mr-2 size-4" />
-                                New Note
+                                <PlusCircle className="mr-2 size-4" /> New Note
                             </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => setNewFolderOpen(true)}>
-                               <FolderPlus className="mr-2 size-4" />
-                                New Folder
+                               <FolderPlus className="mr-2 size-4" /> New Folder
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -361,14 +742,14 @@ export function AppSidebar() {
 
                 <div className="relative mb-2 px-2">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search notes..." 
+                    <Input
+                        placeholder="Search notes..."
                         className="pl-8 h-9"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-            
+
                 <SidebarMenu>
                     <Droppable id="home-dropzone" activeDragType={activeDragType}>
                         <SidebarMenuItem>
@@ -384,11 +765,11 @@ export function AppSidebar() {
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                     </Droppable>
-                     <SidebarMenuItem>
+                    <SidebarMenuItem>
                         <SidebarMenuButton
                             asChild
                             isActive={pathname === '/history'}
-                             className={cn("font-semibold", pathname === '/history' && "bg-sidebar-accent text-sidebar-accent-foreground")}
+                            className={cn("font-semibold", pathname === '/history' && "bg-sidebar-accent text-sidebar-accent-foreground")}
                         >
                             <Link href="/history">
                                 <History />
@@ -396,19 +777,14 @@ export function AppSidebar() {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
-                     <Droppable id="trash-dropzone" activeDragType={activeDragType}>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                asChild
-                                isActive={pathname === '/trash'}
-                                className={cn("font-semibold", pathname === '/trash' && "bg-sidebar-accent text-sidebar-accent-foreground")}
-                            >
-                                <Link href="/trash">
-                                    <Trash2 />
-                                    <span>Trash</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                    <Droppable id="trash-dropzone" activeDragType={activeDragType}>
+                      <SidebarTrashRow
+                        menuOpen={openMenu?.kind === 'trash'}
+                        onOpenMenu={() => setOpenMenu({ kind: 'trash' })}
+                        onOpenChange={(open) => setOpenMenu(open ? { kind: 'trash' } : null)}
+                        trashedCount={trashedCount}
+                        onRequestEmptyTrash={() => setPendingEmptyTrash(true)}
+                      />
                     </Droppable>
                     <SidebarMenuItem>
                         <SidebarMenuButton
@@ -435,111 +811,86 @@ export function AppSidebar() {
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-1">
-                        <SidebarMenu>
-                            {recentNotes.map((note) => (
-                                <SidebarMenuItem key={note.id}>
-                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
-                                        <SidebarMenuButton
-                                            asChild
-                                            isActive={pathname === `/note/${note.id}`}
-                                            className={cn("pl-7", pathname === `/note/${note.id}` && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
-                                        >
-                                            <Link href={`/note/${note.id}`}>
-                                                {noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />}
-                                                <span>{note.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </Draggable>
-                                </SidebarMenuItem>
-                            ))}
-                             {recentNotes.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center">No recent notes.</p>}
-                        </SidebarMenu>
+                          <SidebarMenu>
+                            {recentNotes.map((note) => {
+                              // Per-row identity keyed by the same dragId we
+                              // attach to the Draggable, so duplicate listings
+                              // (recents AND root AND/OR inside an expanded
+                              // folder) don't open their DropdownMenu simultaneously.
+                              const rowKey = `recent-note-${note.id}`;
+                              return (
+                                <SidebarNoteRow
+                                  key={note.id}
+                                  note={note}
+                                  dragId={rowKey}
+                                  activeNoteId={activeNoteId}
+                                  extraClassName="pl-7"
+                                  menuOpen={openMenu?.kind === 'note' && openMenu.rowKey === rowKey}
+                                  onOpenMenu={() => setOpenMenu({ kind: 'note', rowKey })}
+                                  onOpenChange={(open) => setOpenMenu(open ? { kind: 'note', rowKey } : null)}
+                                  onRequestVersionHistory={requestVersionHistory}
+                                />
+                              );
+                            })}
+                            {recentNotes.length === 0 && (
+                              <p className="text-xs text-muted-foreground p-2 text-center">No recent notes.</p>
+                            )}
+                          </SidebarMenu>
                         </AccordionContent>
                     </AccordionItem>
                 </Accordion>
 
                 <SidebarMenu>
-                     {filteredData.rootNotes.map((note) => {
-                        const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                        return (
-                            <SidebarMenuItem key={note.id}>
-                                <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={pathname === `/note/${note.id}`}
-                                        className={cn(pathname === `/note/${note.id}` && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
-                                    >
-                                        <Link href={`/note/${note.id}`}>
-                                            {icon}
-                                            <span>{note.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </Draggable>
-                            </SidebarMenuItem>
-                        )
-                     })}
+                    {filteredData.rootNotes.map((note) => {
+                      // Per-row identity key (same dragId we attach to the
+                      // Draggable) — see recents map comment for the
+                      // duplicate-render rationale.
+                      const rowKey = `root-note-${note.id}`;
+                      return (
+                        <SidebarNoteRow
+                          key={note.id}
+                          note={note}
+                          dragId={rowKey}
+                          activeNoteId={activeNoteId}
+                          menuOpen={openMenu?.kind === 'note' && openMenu.rowKey === rowKey}
+                          onOpenMenu={() => setOpenMenu({ kind: 'note', rowKey })}
+                          onOpenChange={(open) => setOpenMenu(open ? { kind: 'note', rowKey } : null)}
+                          onRequestVersionHistory={requestVersionHistory}
+                        />
+                      );
+                    })}
                 </SidebarMenu>
 
-
-              <Accordion type="multiple" defaultValue={folderIds} className="w-full">
-                {filteredData.folders.map((folder) => {
-                  const isFolderActive = pathname.startsWith(`/folder/${folder.id}`);
-                  return (
-                  <Droppable key={folder.id} id={`folder-${folder.id}`} activeDragType={activeDragType}>
-                    <AccordionItem value={folder.id} className="border-none relative group/folder-item">
-                        <Draggable id={`folder-${folder.id}`} data={{ type: 'folder', item: folder }}>
-                            <AccordionTrigger 
-                                className={cn(
-                                    "w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90",
-                                    isFolderActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
-                                )}
-                            >
-                                <div className="flex flex-1 items-center gap-2">
-                                    <Folder className="size-4" />
-                                    <span className="truncate cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); router.push(`/folder/${folder.id}`); }}>{folder.name}</span>
-                                </div>
-                            </AccordionTrigger>
-                        </Draggable>
-                      {folder.notes.length > 0 && (
-                        <AccordionContent className="pt-1">
-                          <SidebarMenu>
-                            {folder.notes.map((note) => {
-                               const icon = noteTypeOptions.find((o) => o.value === note.type)?.icon ?? <FileText className="size-4" />;
-                               const isNoteActive = pathname === `/note/${note.id}`;
-                               return (
-                                 <SidebarMenuItem key={note.id}>
-                                    <Draggable id={`note-${note.id}`} data={{ type: 'note', item: note }}>
-                                      <SidebarMenuButton
-                                       asChild
-                                       isActive={isNoteActive}
-                                       className={cn("pl-7", isNoteActive && "bg-sidebar-accent text-sidebar-accent-foreground font-semibold")}
-                                     >
-                                       <Link href={`/note/${note.id}`}>
-                                           {icon}
-                                           <span>{note.title}</span>
-                                       </Link>
-                                   </SidebarMenuButton>
-                                   </Draggable>
-                                 </SidebarMenuItem>
-                               )
-                            })}
-                          </SidebarMenu>
-                        </AccordionContent>
-                      )}
-                    </AccordionItem>
-                  </Droppable>
-                )})}
-              </Accordion>
-              <div className="px-2 mt-4">
-                  <h2 className="text-base font-semibold mb-2">Tags</h2>
-                  <div className="flex flex-wrap gap-1.5">
-                      {uniqueTags.map(tag => (
-                          <Link href={`/tag/${tag}`} key={tag}>
-                            <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
-                          </Link>
-                      ))}
-                  </div>
-              </div>
+                <Accordion type="multiple" defaultValue={folderIds} className="w-full">
+                    {filteredData.folders.map((folder) => (
+                      <SidebarFolderRow
+                        key={folder.id}
+                        folder={folder}
+                        dimmedFolderId={dimmedFolderId}
+                        activeDragType={activeDragType}
+                        activeNoteId={activeNoteId}
+                        menuOpen={openMenu?.kind === 'folder' && openMenu.id === folder.id}
+                        onOpenMenu={() => setOpenMenu({ kind: 'folder', id: folder.id })}
+                        onOpenChange={(open) => setOpenMenu(open ? { kind: 'folder', id: folder.id } : null)}
+                        onRequestRename={setFolderToRename}
+                        onRequestDelete={setFolderToDelete}
+                        onRequestNewNoteInFolder={requestNewNoteInFolder}
+                        openMenu={openMenu}
+                        setOpenMenu={setOpenMenu}
+                        onRequestVersionHistory={requestVersionHistory}
+                      />
+                    ))}
+                </Accordion>
+                <div className="px-2 mt-4">
+                    <h2 className="text-base font-semibold mb-2">Tags</h2>
+                    <div className="flex flex-wrap gap-1.5">
+                        {uniqueTags.map(tag => (
+                            <Link href={`/tag/${tag}`} key={tag}>
+                              <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
             </SidebarContent>
             <SidebarFooter className="p-2">
                 <SidebarSeparator className="mb-2" />
@@ -560,7 +911,11 @@ export function AppSidebar() {
             </SidebarFooter>
         </Sidebar>
         <DragOverlay>
-            {activeDragItem ? <ItemPreview item={activeDragItem.data.current?.item} type={activeDragItem.data.current?.type} /> : null}
+            {activeDragItem ? (
+              // Cast: @dnd-kit's Active.data.current is typed loosely as AnyData;
+              // the value is the DraggableData we attached via useDraggable.
+              <ItemPreview data={activeDragItem.data.current as DraggableData | undefined} />
+            ) : null}
         </DragOverlay>
       </DndContext>
 
@@ -581,7 +936,7 @@ export function AppSidebar() {
             </form>
         </DialogContent>
       </Dialog>
-      
+
       <Dialog open={isNewNoteOpen} onOpenChange={setNewNoteOpen}>
         <DialogContent>
             <form onSubmit={handleCreateNoteSubmit}>
@@ -609,7 +964,7 @@ export function AppSidebar() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="folderId">Folder</Label>
-                        <Select name="folderId" defaultValue="none">
+                        <Select name="folderId" defaultValue={newNoteFolderPrefill ?? 'none'}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a folder" />
                             </SelectTrigger>
@@ -628,6 +983,93 @@ export function AppSidebar() {
             </form>
         </DialogContent>
       </Dialog>
+
+      {/* Folder rename dialog — triggered from right-click menu on a folder. */}
+      <Dialog
+        open={folderToRename !== null}
+        onOpenChange={(open) => { if (!open) setFolderToRename(null); }}
+      >
+        <DialogContent>
+          <form onSubmit={handleConfirmFolderRename}>
+            <DialogHeader>
+              <DialogTitle>Rename Folder</DialogTitle>
+              <DialogDescription>
+                Enter a new name for the folder &quot;{folderToRename?.name}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="newFolderName" className="sr-only">Folder Name</Label>
+              <Input
+                id="newFolderName"
+                name="newFolderName"
+                defaultValue={folderToRename?.name ?? ''}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setFolderToRename(null)}>Cancel</Button>
+              <Button type="submit">Rename</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder delete confirmation — triggered from right-click menu on a folder. */}
+      <AlertDialog
+        open={folderToDelete !== null}
+        onOpenChange={(open) => { if (!open) setFolderToDelete(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete folder?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Move &quot;{folderToDelete?.name}&quot; and all its notes to the Trash. You can restore them later from the Trash page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmFolderDelete}>
+              Move to Trash
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Empty trash confirmation — triggered from right-click menu on Trash row. */}
+      <AlertDialog
+        open={pendingEmptyTrash}
+        onOpenChange={setPendingEmptyTrash}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Empty trash?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently delete all {trashedNotes.length} note{plur(trashedNotes.length)} and {trashedFolders.length} folder{plur(trashedFolders.length)} in trash. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmEmptyTrash}>
+              Empty Trash
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Version history — opened from right-click menu on a note row,
+          or from inside a folder's expanded notes. */}
+      <NoteHistorySheet
+        note={historyNote}
+        isOpen={historyNote !== null}
+        onOpenChange={(open) => { if (!open) setHistoryNote(null); }}
+        onRestore={(timestamp) => {
+          if (historyNote) handleRestoreVersion(historyNote.id, timestamp);
+        }}
+      />
     </>
   );
+}
+
+function plur(n: number): string {
+  return n === 1 ? '' : 's';
 }

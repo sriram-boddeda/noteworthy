@@ -189,16 +189,14 @@ export function AiSettings() {
                 {showKey ? 'Hide' : 'Show'}
               </Button>
             </div>
-            {provider !== 'ollama' && (
-              <a
-                href={docsUrl[provider]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <Link className="size-3" /> Get a {provider === 'gemini' ? 'Gemini' : 'OpenAI'} API Key
-              </a>
-            )}
+            <a
+              href={docsUrl[provider]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+            >
+              <Link className="size-3" /> Get a {provider === 'gemini' ? 'Gemini' : 'OpenAI'} API Key
+            </a>
           </div>
         )}
 

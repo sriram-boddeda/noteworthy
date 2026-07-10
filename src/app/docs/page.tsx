@@ -89,7 +89,9 @@ export default function DocsPage() {
       rootMargin: '-20% 0px -35% 0px', // Adjust margins to better detect which element is "active"
     });
 
-    const elements = tocItems.map(item => document.getElementById(item.id)).filter(Boolean);
+    const elements = tocItems
+      .map(item => document.getElementById(item.id))
+      .filter((el): el is HTMLElement => el !== null);
     elements.forEach(el => observer.current?.observe(el as Element));
 
     if (elements.length > 0) {

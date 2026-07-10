@@ -24,12 +24,18 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
+/**
+ * Renders as a `<span>` rather than a `<div>` so it is valid HTML when used
+ * inline (inside a `<p>`, `<li>`, `<label>`, etc.). The `inline-flex` class
+ * already on `badgeVariants` preserves the visual rendering that a `<div>`
+ * previously provided; only the underlying element changes.
+ */
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 

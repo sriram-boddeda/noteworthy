@@ -39,6 +39,7 @@ interface AppContextType {
   handleDeleteFolder: (folderId: string, deleteNotes: boolean) => void;
   handleRestoreFolder: (folderId: string, restoreNotes: boolean) => void;
   handlePermanentDeleteFolder: (folderId: string, deleteContainedNotes: boolean) => void;
+  handleEmptyTrash: () => void;
   handleDrop: (active: Active, over: Over | null) => void;
   handleRestoreVersion: (noteId: string, versionTimestamp: number) => void;
   handleUpdateSettings: (newSettings: Partial<UserSettings>) => void;
@@ -453,10 +454,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handlePermanentDeleteFolder = useCallback((folderId: string, deleteContainedNotes: boolean) => {
     const folder = allFolders.find(f => f.id === folderId && f.isTrashed);
     if (!folder) return;
-  
+
     const notesInside = allNotes.filter(n => n.folderId === folderId && n.isTrashed);
     logAction('folder', folder.id, folder.name, { type: 'PERMANENT_DELETE' }, folder, notesInside);
-  
+
     if (deleteContainedNotes) {
       const noteIdsToDelete = notesInside.map(n => n.id);
       setAllNotes(prev => prev.filter(n => !noteIdsToDelete.includes(n.id)));
@@ -468,6 +469,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       toast.error(`Folder "${folder.name}" permanently deleted. Its notes remain in trash.`);
     }
   }, [allFolders, allNotes, logAction]);
+
+  const handleEmptyTrash = useCallback(() => {
+    const trashedNotesSnapshot = [...trashedNotes];
+    const trashedFoldersSnapshot = [...trashedFolders];
+
+    trashedNotesSnapshot.forEach((n) => {
+      logAction('note', n.id, n.title, { type: 'PERMANENT_DELETE' }, n);
+    });
+    trashedFoldersSnapshot.forEach((f) => {
+      const containedNotes = allNotes.filter(
+        (n) => n.folderId === f.id && n.isTrashed
+      );
+      logAction('folder', f.id, f.name, { type: 'PERMANENT_DELETE' }, f, containedNotes);
+    });
+
+    setAllNotes((prev) => prev.filter((n) => !n.isTrashed));
+    setAllFolders((prev) => prev.filter((f) => !f.isTrashed));
+
+    const noteCount = trashedNotesSnapshot.length;
+    const folderCount = trashedFoldersSnapshot.length;
+    if (noteCount > 0 || folderCount > 0) {
+      toast.success('Trash emptied', {
+        description: `Permanently deleted ${noteCount} note(s) and ${folderCount} folder(s).`,
+      });
+    }
+  }, [trashedNotes, trashedFolders, allNotes, logAction]);
 
   const handleDrop = useCallback((active: Active, over: Over | null) => {
     if (!over) return;
@@ -640,6 +667,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     handleDeleteFolder,
     handleRestoreFolder,
     handlePermanentDeleteFolder,
+    handleEmptyTrash,
     handleDrop,
     handleRestoreVersion,
     handleUpdateSettings,
@@ -648,7 +676,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }), [
     folders, notes, trashedNotes, trashedFolders, isDataLoaded, actionHistory, settings, getNoteById, getNotesByFolderId, getNotesByTag, getTrashedNotesByFolderId, uniqueTags, recentNotes,
     handleCreateFolder, handleCreateNote, handleContentChange, handleUpdateTags, handleDeleteNote, handleUndoDelete, handleRestoreNote, handlePermanentDeleteNote, handleRetrieveItemFromHistory,
-    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder, handleRestoreFolder, handlePermanentDeleteFolder, handleDrop,
+    handleTitleChange, handleUpdateSummary, handleMoveNote, handleCopyNote, handleRenameFolder, handleDeleteFolder,    handleRestoreFolder, handlePermanentDeleteFolder, handleEmptyTrash, handleDrop,
     handleRestoreVersion, handleUpdateSettings, handleExportData, handleImportData,
   ]);
 
