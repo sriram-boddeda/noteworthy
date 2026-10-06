@@ -2,12 +2,13 @@
 'use client';
 
 import { NoteList } from '@/components/note-list';
+import { NoteGridSkeleton } from '@/components/note-grid-skeleton';
 import { useAppContext } from '@/context/app-provider';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function Home() {
-  const { notes: allNotes } = useAppContext();
+  const { notes: allNotes, isDataLoaded } = useAppContext();
   const breadcrumbs = [{ href: '/', label: 'Home' }];
 
   return (
@@ -25,7 +26,9 @@ export default function Home() {
           </div>
       </header>
       <main className="flex-1 p-4">
-        {allNotes.length > 0 ? (
+        {!isDataLoaded ? (
+          <NoteGridSkeleton />
+        ) : allNotes.length > 0 ? (
           <NoteList notes={allNotes} />
         ) : (
            <div className="flex h-[calc(100vh-12rem)] items-center justify-center rounded-lg border-2 border-dashed bg-muted/50">

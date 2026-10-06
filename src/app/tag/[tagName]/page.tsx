@@ -3,6 +3,7 @@
 
 import { useParams } from 'next/navigation';
 import { NoteList } from '@/components/note-list';
+import { NoteGridSkeleton } from '@/components/note-grid-skeleton';
 import { useAppContext } from '@/context/app-provider';
 import { Tag } from 'lucide-react';
 import { useMemo } from 'react';
@@ -12,7 +13,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 export default function TagPage() {
   const params = useParams();
   const tagName = useMemo(() => decodeURIComponent(params.tagName as string), [params.tagName]);
-  const { getNotesByTag } = useAppContext();
+  const { getNotesByTag, isDataLoaded } = useAppContext();
 
   const notesWithTag = useMemo(() => getNotesByTag(tagName), [getNotesByTag, tagName]);
   
@@ -39,7 +40,9 @@ export default function TagPage() {
           </div>
       </header>
       <main className="flex-1 p-4">
-        {notesWithTag.length > 0 ? (
+        {!isDataLoaded ? (
+          <NoteGridSkeleton />
+        ) : notesWithTag.length > 0 ? (
           <NoteList notes={notesWithTag} />
         ) : (
            <div className="flex h-[calc(100vh-12rem)] items-center justify-center rounded-lg border-2 border-dashed bg-muted/50">

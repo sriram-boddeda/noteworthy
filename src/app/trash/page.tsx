@@ -8,9 +8,10 @@ import { useAppContext } from '@/context/app-provider';
 import { Folder, Trash2 } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { TrashFolderList } from '@/components/trash-folder-list';
+import { NoteGridSkeleton } from '@/components/note-grid-skeleton';
 
 export default function TrashPage() {
-  const { trashedNotes, trashedFolders } = useAppContext();
+  const { trashedNotes, trashedFolders, isDataLoaded } = useAppContext();
   
   const breadcrumbs = useMemo(() => {
     return [
@@ -39,7 +40,9 @@ export default function TrashPage() {
           </div>
       </header>
       <main className="flex-1 p-4">
-        {hasContent ? (
+        {!isDataLoaded ? (
+          <NoteGridSkeleton />
+        ) : hasContent ? (
           <div className="space-y-8">
             {trashedFolders.length > 0 && (
               <div>

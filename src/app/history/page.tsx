@@ -7,9 +7,10 @@ import { useAppContext } from '@/context/app-provider';
 import { History } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { HistoryList } from '@/components/history-list';
+import { NoteGridSkeleton } from '@/components/note-grid-skeleton';
 
 export default function HistoryPage() {
-  const { actionHistory } = useAppContext();
+  const { actionHistory, isDataLoaded } = useAppContext();
   
   const breadcrumbs = useMemo(() => {
     return [
@@ -37,7 +38,9 @@ export default function HistoryPage() {
           </div>
       </header>
       <main className="flex-1 p-4">
-        {actionHistory.length > 0 ? (
+        {!isDataLoaded ? (
+          <NoteGridSkeleton />
+        ) : actionHistory.length > 0 ? (
           <HistoryList history={actionHistory} />
         ) : (
            <div className="flex h-[calc(100vh-12rem)] items-center justify-center rounded-lg border-2 border-dashed bg-muted/50">
