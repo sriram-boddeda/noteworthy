@@ -111,7 +111,11 @@ const Carousel = React.forwardRef<
         return
       }
 
-      onSelect(api)
+      // The initial button-state seed is a one-shot sync from the external
+      // embla store; it runs as a microtask callback (before paint) rather
+      // than synchronously in the effect body, and the ongoing updates come
+      // from the embla event subscriptions below.
+      queueMicrotask(() => onSelect(api))
       api.on("reInit", onSelect)
       api.on("select", onSelect)
 

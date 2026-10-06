@@ -37,7 +37,7 @@ function evaluateExpression(expr: string, scope: Map<string, number>): number {
   
   try {
      return new Function('return ' + sanitizedExpr)();
-  } catch (e) {
+  } catch {
     throw new Error('Invalid syntax');
   }
  
@@ -69,8 +69,11 @@ export function evaluateNotebook(text: string): EvaluationResult {
         const value = evaluateExpression(trimmedLine, variables);
         results.set(index, { value, error: null });
       }
-    } catch (e: any) {
-      results.set(index, { value: null, error: e.message || 'Invalid expression' });
+    } catch (e) {
+      results.set(index, {
+        value: null,
+        error: e instanceof Error ? e.message : 'Invalid expression',
+      });
     }
   });
 

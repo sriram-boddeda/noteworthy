@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import type { AiProvider, AiProviderConfig, AiService } from '@/ai/services/types';
 import { createGeminiService } from '@/ai/services/gemini';
 import { createOllamaService } from '@/ai/services/ollama';
@@ -56,16 +56,13 @@ function saveConfig(config: AiProviderConfig | null) {
 }
 
 export function AiProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfigState] = useState<AiProviderConfig | null>(null);
+  // Hydrate from sessionStorage on first render instead of in an effect: the
+  // store starts settled, children never see a not-yet-loaded flash, and no
+  // cascading render is needed. SSR renders the null config.
+  const [config, setConfigState] = useState<AiProviderConfig | null>(() =>
+    typeof window === 'undefined' ? null : loadConfig(),
+  );
   const serviceRef = useRef<AiService | null>(null);
-
-  useEffect(() => {
-    const loaded = loadConfig();
-    if (loaded) {
-      setConfigState(loaded);
-      serviceRef.current = createService(loaded);
-    }
-  }, []);
 
   const setConfig = useCallback((newConfig: AiProviderConfig | null) => {
     setConfigState(newConfig);
@@ -84,11 +81,16 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
   }, [setConfig]);
 
   const getService = useCallback((): AiService => {
+    // Self-healing: createService is cheap and pure, so rebuilding on demand
+    // (after a crash or lost provider remount) is simpler than mirror effects.
+    if (!serviceRef.current && config) {
+      serviceRef.current = createService(config);
+    }
     if (!serviceRef.current) {
       throw new Error('AI is not configured. Please set up an AI provider in Settings.');
     }
     return serviceRef.current;
-  }, []);
+  }, [config]);
 
   const testConnection = useCallback(async () => {
     try {
@@ -100,8 +102,10 @@ export function AiProvider({ children }: { children: React.ReactNode }) {
         toast.error('Connection failed. Check your configuration.');
       }
       return ok;
-    } catch (e: any) {
-      toast.error('Connection error', { description: e.message });
+    } catch (e) {
+      toast.error('Connection error', {
+        description: e instanceof Error ? e.message : String(e),
+      });
       return false;
     }
   }, [getService]);

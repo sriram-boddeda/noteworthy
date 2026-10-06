@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Folder, Note, ActionHistory, ActionDetail, NoteVersion, UserSettings } from '@/lib/data';
+import type { Folder, Note, ActionHistory, ActionDetail, UserSettings } from '@/lib/data';
 import { getInitialData, defaultSettings } from '@/lib/data';
 import { toast } from 'sonner';
 import type { Active, Over } from '@dnd-kit/core';
@@ -84,6 +84,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
   
+  /* eslint-disable react-hooks/set-state-in-effect -- Hydrating the
+     persisted workspace is a genuine external-store load: the values come
+     from localStorage, not React, and running once after mount keeps SSR
+     markup stable. This is the case the rule carves out. */
   useEffect(() => {
     try {
       const storedNotes = localStorage.getItem('noteworthy-notes');
@@ -115,9 +119,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsDataLoaded(true);
     }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (isDataLoaded) {
+    if (!isDataLoaded) return;
+    // Debounce: content changes fire per keystroke, and serializing the whole
+    // workspace into localStorage on each one janks typing on large notebooks.
+    const timeout = setTimeout(() => {
       try {
         localStorage.setItem('noteworthy-notes', JSON.stringify(allNotes));
         localStorage.setItem('noteworthy-folders', JSON.stringify(allFolders));
@@ -129,7 +137,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             description: "Your changes might not be saved.",
         });
       }
-    }
+    }, 400);
+    return () => clearTimeout(timeout);
   }, [allNotes, allFolders, actionHistory, settings, isDataLoaded]);
 
    
@@ -249,17 +258,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleDeleteNote = useCallback((noteId: string) => {
-    let noteToDelete: Note | undefined;
-    setAllNotes(prev => {
-        noteToDelete = prev.find(n => n.id === noteId);
-        return prev.map(n => n.id === noteId ? { ...n, isTrashed: true, lastModified: Date.now() } : n)
-    });
+    // Resolve the note BEFORE the setState: function updaters run during the
+    // next render, not synchronously, so anything captured inside them is
+    // still undefined here — the previous shape silently skipped the history
+    // log and left the Undo toast pointing at nothing.
+    const noteToDelete = allNotes.find(n => n.id === noteId);
+    if (!noteToDelete) return;
 
-    if (noteToDelete) {
-        logAction('note', noteId, noteToDelete.title, { type: 'DELETE' });
-        lastDeletedNote.current = noteToDelete;
-    }
-  }, [logAction]);
+    setAllNotes(prev => prev.map(n => n.id === noteId ? { ...n, isTrashed: true, lastModified: Date.now() } : n));
+    logAction('note', noteId, noteToDelete.title, { type: 'DELETE' });
+    lastDeletedNote.current = noteToDelete;
+  }, [allNotes, logAction]);
 
   const handleUndoDelete = useCallback(() => {
     const noteToRestore = lastDeletedNote.current;
@@ -606,8 +615,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Basic validation
-    const isValidNotes = Array.isArray(data.notes) && data.notes.every((n: any) => n.id && n.title);
-    const isValidFolders = Array.isArray(data.folders) && data.folders.every((f: any) => f.id && f.name);
+    const isValidNotes = Array.isArray(data.notes) && data.notes.every((n: { id?: unknown; title?: unknown }) => n.id && n.title);
+    const isValidFolders = Array.isArray(data.folders) && data.folders.every((f: { id?: unknown; name?: unknown }) => f.id && f.name);
 
     if (!isValidNotes || !isValidFolders) {
         throw new Error("Invalid data structure in import file.");

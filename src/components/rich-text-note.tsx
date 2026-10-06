@@ -62,11 +62,11 @@ lowlight.register('bash', bash);
 
 
 const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
-  if (!editor) {
-    return null;
-  }
-
+  // Hooks must run before any early return — this component renders with
+  // `editor === null` on first mount, and calling hooks conditionally crashes
+  // React with "Rendered fewer hooks than expected" once the editor arrives.
   const handleLink = useCallback(() => {
+    if (!editor) return;
     const previousUrl = editor.getAttributes('link').href;
     const url = window.prompt('URL', previousUrl);
 
@@ -81,6 +81,10 @@ const TiptapToolbar = ({ editor }: { editor: Editor | null }) => {
 
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   }, [editor]);
+
+  if (!editor) {
+    return null;
+  }
 
   return (
     <div className="p-2 border-b flex flex-wrap items-center gap-1 bg-card rounded-t-lg">
