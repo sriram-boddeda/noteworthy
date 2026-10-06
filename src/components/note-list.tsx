@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Note } from '@/lib/data';
 import { noteTypeOptions } from '@/lib/data';
-import { Badge } from './ui/badge';
+import { AnimatedBadge } from '@/components/motion/animated-badge';
 import { FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -27,8 +27,8 @@ export function NoteList({ notes }: NoteListProps) {
 
         return (
             <Link href={`/note/${note.id}`} key={note.id} className="block h-full">
-            <Card className="group flex flex-col h-full transition-all duration-200 hover:scale-[1.02] hover:shadow-xl border-border/60 hover:border-border [transform:translateZ(0)]">
-                <div className="flex h-full flex-col transition-transform duration-200 group-hover:scale-[.98] [transform:translateZ(0)]">
+            <Card className="group flex h-full flex-col border-border/60 transition-[translate,box-shadow,border-color] duration-(--duration-fast) ease-(--ease-smooth-out) hover:-translate-y-1 hover:border-border hover:shadow-xl">
+                <div className="flex h-full flex-col">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
                             {icon}
@@ -43,10 +43,10 @@ export function NoteList({ notes }: NoteListProps) {
                     <CardFooter className="flex justify-between items-end text-xs text-muted-foreground pt-0">
                         <div className="flex flex-wrap items-center gap-1">
                             {note.tags.slice(0, 2).map(tag => (
-                                <Badge key={tag} variant="secondary" className="font-normal">{tag}</Badge>
+                                <AnimatedBadge key={tag} status="neutral" showIcon={false} size="sm" className="font-normal">{tag}</AnimatedBadge>
                             ))}
                             {note.tags.length > 2 && (
-                                <Badge variant="outline" className="font-normal text-muted-foreground">+{note.tags.length - 2}</Badge>
+                                <AnimatedBadge status="neutral" showIcon={false} size="sm" className="font-normal text-muted-foreground">+{note.tags.length - 2}</AnimatedBadge>
                             )}
                         </div>
                         {lastModifiedText && <span>{lastModifiedText}</span>}
