@@ -21,7 +21,7 @@ function extractCodeText(children: React.ReactNode): string {
   React.Children.forEach(children, (child) => {
     if (typeof child === 'string') text += child;
     else if (child && typeof child === 'object' && 'props' in child) {
-      text += extractCodeText((child as any).props.children);
+      text += extractCodeText((child as { props: { children?: React.ReactNode } }).props.children);
     }
   });
   return text.replace(/\n$/, '');
@@ -76,7 +76,9 @@ const components: Components = {
     const { children, ...rest } = props;
     const codeChild = Array.isArray(children) ? children[0] : children;
     const codeText = extractCodeText(codeChild);
-    const lang = (codeChild as any)?.props?.className?.match(/language-(\w+)/)?.[1];
+    const lang = (codeChild as { props?: { className?: string } } | null | undefined)?.props?.className?.match(
+      /language-(\w+)/,
+    )?.[1];
     return (
       <div className="not-prose my-4 overflow-hidden rounded-lg bg-[#282c34] text-sm">
         <div className="flex items-center justify-between bg-gray-700/50 px-4 py-1.5 text-xs text-gray-400">

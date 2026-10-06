@@ -35,8 +35,10 @@ export function createOllamaService(config: AiProviderConfig): AiService {
       return result.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
     },
 
-    async textToSpeech(_text: string) {
-      throw new Error('Text-to-speech is not supported with Ollama. Use the Gemini provider for TTS.');
+    async textToSpeech(text: string) {
+      throw new Error(
+        `Text-to-speech is not supported with Ollama (${text.length} characters requested). Use the Gemini provider for TTS.`,
+      );
     },
 
     async generateCalculatorStarter(prompt: string) {
