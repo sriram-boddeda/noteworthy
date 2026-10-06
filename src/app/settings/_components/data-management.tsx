@@ -3,9 +3,7 @@
 
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/motion/button";
 import { useAppContext } from "@/context/app-provider";
 import { toast } from "sonner";
 import { Download, Upload, Loader2 } from 'lucide-react';
@@ -44,16 +42,19 @@ export function DataManagement() {
                         toast.success("Import successful!", {
                             description: `Imported ${notes.length} notes and ${folders.length} folders.`
                         });
-                    } catch (error: any) {
+                    } catch (error) {
                          toast.error("Import failed", {
-                            description: error.message || "The selected file is not valid."
+                            description:
+                                error instanceof Error
+                                    ? error.message
+                                    : "The selected file is not valid.",
                         });
                     }
                 }
                 setIsImporting(false);
             };
             reader.readAsText(file);
-        } catch (error) {
+        } catch {
             toast.error("Import failed", {
                 description: "Could not read the selected file."
             });
@@ -84,7 +85,9 @@ export function DataManagement() {
                         <p className="text-sm text-muted-foreground">Import from a previously exported JSON file.</p>
                     </div>
                     <div>
-                        <Input
+                        {/* beUI Input's value-based onChange can't surface File objects,
+                            so the hidden file picker stays a native input. */}
+                        <input
                             id="import-file"
                             type="file"
                             accept=".json"

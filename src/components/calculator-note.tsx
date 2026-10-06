@@ -1,21 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from 'monaco-editor';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/motion/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+  CenterMorphModal,
+  CenterMorphModalContent,
+  CenterMorphModalTrigger,
+} from '@/components/motion/center-morph-modal';
+import { Input } from '@/components/motion/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -35,28 +31,27 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
   const [prompt, setPrompt] = useState('A trip with friends to split expenses');
   const { theme } = useTheme();
   const { isAiEnabled, generateCalculatorStarter } = useAiContext();
-  const [generateState, doGenerate] = useAiAction<string>(generateCalculatorStarter);
+  const [generateState, doGenerate] = useAiAction(generateCalculatorStarter);
 
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
-  useEffect(() => {
-    if (generateState.data) {
-      onContentChange(generateState.data);
+  // useAiAction resolves with the result (or undefined on failure), so the
+  // success side effects run right here instead of in an effect watching
+  // derived state.
+  const handleGenerate = useCallback(async () => {
+    const result = await doGenerate(prompt);
+    if (result !== undefined) {
+      onContentChange(result);
       setDialogOpen(false);
       toast.success('Template Generated!', {
         description: 'Your calculator note is ready to use.',
       });
-    }
-    if (generateState.error) {
+    } else {
       toast.error('Uh oh! Something went wrong.', {
-        description: generateState.error,
+        description: 'Could not generate a calculator template. Try again.',
       });
     }
-  }, [generateState, onContentChange]);
-
-  const handleGenerate = useCallback(async () => {
-    await doGenerate(prompt);
-  }, [doGenerate, prompt]);
+  }, [doGenerate, prompt, onContentChange]);
 
   const { results, variables } = useMemo(() => evaluateNotebook(content), [content]);
 
@@ -99,21 +94,21 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
           <div className="relative w-full md:w-3/4 flex flex-col">
             {isAiEnabled && (
                 <div className="absolute top-4 right-4 z-10">
-                <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
+                <CenterMorphModal open={isDialogOpen} onOpenChange={setDialogOpen}>
+                    <CenterMorphModalTrigger>
                     <Button size="sm" variant="ghost" className="opacity-50 hover:opacity-100 transition-opacity">
                         <Sparkles className="mr-2 h-4 w-4 text-primary" />
                         Generate with AI
                     </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                        <DialogTitle>Generate Calculator Note</DialogTitle>
-                        <DialogDescription>
+                    </CenterMorphModalTrigger>
+                    <CenterMorphModalContent ariaLabel="Generate calculator note" className="max-w-[425px]">
+                        <div className="flex flex-col gap-2 p-6 pb-2">
+                        <h2 className="text-lg font-semibold leading-none tracking-tight">Generate Calculator Note</h2>
+                        <p className="text-sm text-muted-foreground">
                             Describe what you want to calculate, and we&apos;ll create a template for you.
-                        </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
+                        </p>
+                        </div>
+                        <div className="grid gap-4 px-6 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="prompt" className="text-right">
                             Prompt
@@ -121,19 +116,19 @@ export function CalculatorNote({ content, onContentChange }: CalculatorNoteProps
                             <Input
                             id="prompt"
                             value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
+                            onChange={setPrompt}
                             className="col-span-3"
                             />
                         </div>
                         </div>
-                        <DialogFooter>
+                        <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
                         <Button onClick={handleGenerate} disabled={generateState.isPending}>
                             {generateState.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Generate
                         </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                        </div>
+                    </CenterMorphModalContent>
+                </CenterMorphModal>
                 </div>
             )}
             <Editor

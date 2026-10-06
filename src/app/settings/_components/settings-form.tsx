@@ -2,22 +2,21 @@
 'use client';
 
 import { useAppContext } from "@/context/app-provider";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/motion/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/motion/select";
+import { RangeSlider } from "@/components/motion/range-slider";
 import { noteTypeOptions } from "@/lib/data";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { UserSettings } from "@/lib/data";
 
 export function SettingsForm() {
     const { settings, handleUpdateSettings } = useAppContext();
+    // The server state becomes this form's initial state; re-syncing it on
+    // every parent render would clobber in-progress edits, so there is no
+    // effect here.
     const [localSettings, setLocalSettings] = useState<UserSettings>(settings);
-
-    useEffect(() => {
-        setLocalSettings(settings);
-    }, [settings]);
 
     const handleSave = () => {
         handleUpdateSettings(localSettings);
@@ -38,7 +37,7 @@ export function SettingsForm() {
                         value={localSettings.defaultNoteType}
                         onValueChange={(value) => setLocalSettings(prev => ({...prev, defaultNoteType: value as UserSettings['defaultNoteType']}))}
                     >
-                        <SelectTrigger id="defaultNoteType">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select default note type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -55,15 +54,15 @@ export function SettingsForm() {
                 </div>
 
                  <div className="space-y-2">
-                    <Label htmlFor="recentNotesCount">Number of Recent Notes</Label>
+                    <Label>Number of Recent Notes</Label>
                     <div className="flex items-center gap-4">
-                         <Slider
-                            id="recentNotesCount"
+                         <RangeSlider
                             min={1}
                             max={10}
                             step={1}
-                            value={[localSettings.recentNotesCount]}
-                            onValueChange={([value]) => setLocalSettings(prev => ({...prev, recentNotesCount: value}))}
+                            value={localSettings.recentNotesCount}
+                            onValueChange={(value) => setLocalSettings(prev => ({...prev, recentNotesCount: value}))}
+                            aria-label="Number of recent notes"
                         />
                         <span className="text-lg font-bold w-12 text-center">{localSettings.recentNotesCount}</span>
                     </div>

@@ -3,8 +3,8 @@
 
 import type { Note } from '@/lib/data';
 import { noteTypeOptions } from '@/lib/data';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
+import { AnimatedBadge } from '@/components/motion/animated-badge';
+import { Button } from '@/components/motion/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +52,7 @@ export function TrashList({ notes }: TrashListProps) {
               </CardDescription>
               <div className="flex flex-wrap gap-1 pt-2">
                 {note.tags.map(tag => (
-                  <Badge key={tag} variant="secondary"><Tag className="size-3 mr-1" />{tag}</Badge>
+                  <AnimatedBadge key={tag} status="neutral" icon={<Tag className="size-3" />} size="sm">{tag}</AnimatedBadge>
                 ))}
               </div>
             </CardHeader>
@@ -63,7 +63,11 @@ export function TrashList({ notes }: TrashListProps) {
               </Button>
               <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive-outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
                         <Trash2 className="mr-2 size-4" />
                         Delete Forever
                     </Button>

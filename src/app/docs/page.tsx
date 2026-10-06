@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { AnimatedBadge } from '@/components/motion/animated-badge';
 import { cn } from '@/lib/utils';
-import { BookOpen, Search, Type } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 
 const tocItems = [
   { id: 'introduction', label: 'Introduction', level: 1 },
@@ -62,6 +62,8 @@ function TableOfContents({ activeId }: { activeId: string }) {
 }
 
 export default function DocsPage() {
+  // '' means "nothing observed yet"; the IntersectionObserver callbacks own
+  // every update from there on.
   const [activeId, setActiveId] = useState('');
   const observer = useRef<IntersectionObserver | null>(null);
   const headingElementsRef = useRef<Record<string, IntersectionObserverEntry>>({});
@@ -94,10 +96,8 @@ export default function DocsPage() {
       .filter((el): el is HTMLElement => el !== null);
     elements.forEach(el => observer.current?.observe(el as Element));
 
-    if (elements.length > 0) {
-        setActiveId(elements[0].id);
-    }
-
+    // The "active section" starts as null state — the observer callbacks own
+    // its updates, so no setState is needed in the effect body.
     return () => observer.current?.disconnect();
   }, [handleObserver]);
 
@@ -149,7 +149,7 @@ export default function DocsPage() {
               </p>
               <ul>
                 <li>Access Home, History, and Trash pages.</li>
-                <li>Create new notes and folders using the <Badge variant="secondary">+</Badge> button.</li>
+                <li>Create new notes and folders using the <AnimatedBadge status="neutral" showIcon={false} size="sm">+</AnimatedBadge> button.</li>
                 <li>Browse through your folders and the notes within them.</li>
                 <li>View a list of all unique tags for quick filtering.</li>
                 <li>Search your entire workspace.</li>
@@ -165,16 +165,16 @@ export default function DocsPage() {
               <h2 className="font-headline">Creating Content</h2>
               <h3 id="creating-note">Creating a New Note</h3>
               <ol>
-                <li>Click the <Badge variant="secondary">+</Badge> button in the sidebar.</li>
-                <li>Select "New Note" from the dropdown menu.</li>
+                <li>Click the <AnimatedBadge status="neutral" showIcon={false} size="sm">+</AnimatedBadge> button in the sidebar.</li>
+                <li>Select &quot;New Note&quot; from the dropdown menu.</li>
                 <li>In the dialog, provide a title, select a note type (Rich Text, Markdown, or Calculator), and optionally choose a folder.</li>
-                <li>Click "Create Note", and you'll be taken directly to your new note.</li>
+                <li>Click &quot;Create Note&quot;, and you&apos;ll be taken directly to your new note.</li>
               </ol>
               <h3 id="creating-folder">Creating a New Folder</h3>
                <ol>
-                <li>Click the <Badge variant="secondary">+</Badge> button in the sidebar.</li>
-                <li>Select "New Folder" from the dropdown.</li>
-                <li>Enter a name for your folder and click "Create Folder". It will immediately appear in your sidebar.</li>
+                <li>Click the <AnimatedBadge status="neutral" showIcon={false} size="sm">+</AnimatedBadge> button in the sidebar.</li>
+                <li>Select &quot;New Folder&quot; from the dropdown.</li>
+                <li>Enter a name for your folder and click &quot;Create Folder&quot;. It will immediately appear in your sidebar.</li>
               </ol>
             </section>
 
@@ -183,7 +183,7 @@ export default function DocsPage() {
               <p>Noteworthy supports three distinct note types to fit your needs.</p>
               
               <h3 id="rich-text-notes">Rich Text Notes</h3>
-              <p>The Rich Text editor provides a familiar "what you see is what you get" (WYSIWYG) experience. Use the toolbar at the top to format your text with headings, bold, italics, lists, and more, just like in a standard word processor.</p>
+              <p>The Rich Text editor provides a familiar &quot;what you see is what you get&quot; (WYSIWYG) experience. Use the toolbar at the top to format your text with headings, bold, italics, lists, and more, just like in a standard word processor.</p>
               <Card className="not-prose my-6">
                 <CardContent className="p-4">
                     <Image src="https://placehold.co/1200x600.png" alt="Rich Text Editor" width={1200} height={600} className="rounded-md" data-ai-hint="rich text editor" />
@@ -199,7 +199,7 @@ export default function DocsPage() {
               </Card>
 
               <h3 id="calculator-notes">Calculator Notes</h3>
-              <p>This unique note type acts as a live calculator. Each line can be a comment (starting with <Badge variant="secondary">#</Badge>), a variable assignment (e.g., <Badge variant="secondary">rent = 1500</Badge>), or a mathematical expression. The live output panel on the right shows the results of your calculations in real-time. It's perfect for quick budgets, expense splitting, or any scenario involving numbers.</p>
+              <p>This unique note type acts as a live calculator. Each line can be a comment (starting with <AnimatedBadge status="neutral" showIcon={false} size="sm">#</AnimatedBadge>), a variable assignment (e.g., <AnimatedBadge status="neutral" showIcon={false} size="sm">rent = 1500</AnimatedBadge>), or a mathematical expression. The live output panel on the right shows the results of your calculations in real-time. It&apos;s perfect for quick budgets, expense splitting, or any scenario involving numbers.</p>
               <Card className="not-prose my-6">
                 <CardContent className="p-4">
                     <Image src="https://placehold.co/1200x600.png" alt="Calculator Note Editor" width={1200} height={600} className="rounded-md" data-ai-hint="calculator note" />
@@ -213,8 +213,8 @@ export default function DocsPage() {
               <p>When viewing a note, the header provides several actions:</p>
               <ul>
                 <li><strong>Title:</strong> Simply click on the title to rename your note.</li>
-                <li><strong>Tags:</strong> Click the pencil icon next to the tags to add, edit, or remove them. You can also use the "Suggest Tags" AI feature to get smart recommendations based on your note's content.</li>
-                <li><strong>AI Features:</strong> Use the "Summarize" button to generate a concise summary of your note, or "Listen" to have the note's content read aloud to you using text-to-speech.</li>
+                <li><strong>Tags:</strong> Click the pencil icon next to the tags to add, edit, or remove them. You can also use the &quot;Suggest Tags&quot; AI feature to get smart recommendations based on your note&apos;s content.</li>
+                <li><strong>AI Features:</strong> Use the &quot;Summarize&quot; button to generate a concise summary of your note, or &quot;Listen&quot; to have the note&apos;s content read aloud to you using text-to-speech.</li>
               </ul>
                <Card className="not-prose my-6">
                 <CardContent className="p-4">
@@ -225,30 +225,30 @@ export default function DocsPage() {
               <h3 id="moving-and-deleting">Moving & Deleting</h3>
               <p>You can organize notes in two ways:</p>
               <ol>
-                <li><strong>Drag and Drop:</strong> Simply drag a note from the sidebar and drop it onto a folder to move it. You can also drag it to the "Trash" item in the sidebar.</li>
-                <li><strong>More Options Menu:</strong> Click the three-dots menu in the note header to find options to "Move Note", "Create Copy", or "Delete".</li>
+                <li><strong>Drag and Drop:</strong> Simply drag a note from the sidebar and drop it onto a folder to move it. You can also drag it to the &quot;Trash&quot; item in the sidebar.</li>
+                <li><strong>More Options Menu:</strong> Click the three-dots menu in the note header to find options to &quot;Move Note&quot;, &quot;Create Copy&quot;, or &quot;Delete&quot;.</li>
               </ol>
 
               <h3 id="version-history">Version History</h3>
-              <p>Noteworthy automatically saves versions of your notes as you work. From the three-dots menu, select "Version History" to open a panel showing all saved versions. You can view and restore any previous version, giving you peace of mind that your work is never lost.</p>
+              <p>Noteworthy automatically saves versions of your notes as you work. From the three-dots menu, select &quot;Version History&quot; to open a panel showing all saved versions. You can view and restore any previous version, giving you peace of mind that your work is never lost.</p>
             </section>
             
             <section id="organizing">
                 <h2 className="font-headline">Organizing Your Workspace</h2>
                 <h3 id="using-folders">Using Folders</h3>
-                <p>Folders are the primary way to structure your notes. Clicking on a folder in the sidebar will display only the notes contained within it. You can drag and drop notes between folders or into the "Home" view to un-folder them.</p>
+                <p>Folders are the primary way to structure your notes. Clicking on a folder in the sidebar will display only the notes contained within it. You can drag and drop notes between folders or into the &quot;Home&quot; view to un-folder them.</p>
 
                 <h3 id="using-tags">Using Tags</h3>
-                <p>Tags provide a flexible way to categorize notes across different folders. Clicking on a tag in the sidebar's tag list will show all notes with that tag, regardless of which folder they are in.</p>
+                <p>Tags provide a flexible way to categorize notes across different folders. Clicking on a tag in the sidebar&apos;s tag list will show all notes with that tag, regardless of which folder they are in.</p>
                 
                 <h3 id="advanced-search">Advanced Search</h3>
                 <p>The search bar is powerful. You can simply type to search titles and content, or you can use special filters for more precise results:</p>
                 <ul>
-                    <li><Badge variant="outline">tag:finance</Badge> - Finds all notes with the "finance" tag.</li>
-                    <li><Badge variant="outline">type:markdown</Badge> - Finds all Markdown notes.</li>
-                    <li><Badge variant="outline">in:work</Badge> - Finds all notes within the "work" folder.</li>
+                    <li><AnimatedBadge status="neutral" showIcon={false} size="sm">tag:finance</AnimatedBadge> - Finds all notes with the &quot;finance&quot; tag.</li>
+                    <li><AnimatedBadge status="neutral" showIcon={false} size="sm">type:markdown</AnimatedBadge> - Finds all Markdown notes.</li>
+                    <li><AnimatedBadge status="neutral" showIcon={false} size="sm">in:work</AnimatedBadge> - Finds all notes within the &quot;work&quot; folder.</li>
                 </ul>
-                <p>You can combine these filters, for example: <Badge variant="secondary">Project proposal tag:work type:markdown</Badge>.</p>
+                <p>You can combine these filters, for example: <AnimatedBadge status="neutral" showIcon={false} size="sm">Project proposal tag:work type:markdown</AnimatedBadge>.</p>
             </section>
 
              <section id="special-pages">
@@ -257,16 +257,14 @@ export default function DocsPage() {
               <p>
                 The History page provides a complete audit log of all actions taken within the application, such as creating, renaming, moving, and deleting notes and folders. For permanently deleted items, you may have the option to retrieve them from this log.
               </p>
-              <h3 id="trash-page">Trash Page</h3>
-              <p>
-                When you delete a note or folder, it's moved to the Trash. From here, you can either restore the item to its original location or delete it permanently. Items in the trash will be automatically deleted after 30 days.
+              <h3 id="trash-page">Trash Page</h3><p>When you delete a note or folder, it&apos;s moved to the Trash. From here, you can either restore the item to its original location or delete it permanently. Items in the trash will be automatically deleted after 30 days.
               </p>
             </section>
 
             <section id="customization">
                 <h2 className="font-headline">Customization</h2>
                 <h3 id="switching-themes">Switching Themes</h3>
-                <p>You can switch between light, dark, and system themes using the theme toggle at the bottom of the sidebar. This allows you to use the app in a way that's most comfortable for your eyes.</p>
+                <p>You can switch between light, dark, and system themes using the theme toggle at the bottom of the sidebar. This allows you to use the app in a way that&apos;s most comfortable for your eyes.</p>
             </section>
 
           </main>

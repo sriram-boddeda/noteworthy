@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from 'react';
 import type { Folder } from '@/lib/data';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/motion/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,7 +80,12 @@ export function TrashFolderList({ folders }: TrashFolderListProps) {
                 <Undo className="mr-2 size-4" />
                 Restore
               </Button>
-              <Button variant="destructive-outline" size="sm" onClick={() => onDeleteClick(folder)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => onDeleteClick(folder)}
+              >
                 <Trash2 className="mr-2 size-4" />
                 Delete Forever
               </Button>

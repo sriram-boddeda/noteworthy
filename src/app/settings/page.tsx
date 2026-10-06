@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useAiContext } from '@/context/ai-provider';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Settings } from 'lucide-react';
@@ -10,7 +11,11 @@ import { DataManagement } from './_components/data-management';
 import { AiSettings } from './_components/ai-settings';
 
 export default function SettingsPage() {
-    
+  // `key` remounts the AI form whenever the backing config appears or
+  // disappears, re-seeding its initial state without a state-sync effect.
+  const { config } = useAiContext();
+  const aiFormKey = config !== null ? 'configured' : 'unconfigured';
+
   const breadcrumbs = useMemo(() => {
     return [
       { href: '/', label: 'Home' },
@@ -38,7 +43,7 @@ export default function SettingsPage() {
       </header>
       <main className="flex-1 p-4">
         <div className="mx-auto max-w-2xl space-y-8">
-            <AiSettings />
+            <AiSettings key={aiFormKey} />
             <SettingsForm />
             <DataManagement />
         </div>

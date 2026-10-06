@@ -3,19 +3,21 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { NoteList } from '@/components/note-list';
+import { NoteGridSkeleton } from '@/components/note-grid-skeleton';
 import { useAppContext } from '@/context/app-provider';
 import { Folder, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useMemo, useState, useCallback } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/motion/button';
+import { CenterMorphModal, CenterMorphModalContent } from '@/components/motion/center-morph-modal';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,15 +28,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/motion/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from '@/components/motion/checkbox';
 
 export default function FolderPage() {
   const params = useParams();
   const router = useRouter();
   const folderId = params.folderId as string;
-  const { folders, getNotesByFolderId, handleRenameFolder, handleDeleteFolder } = useAppContext();
+  const { folders, getNotesByFolderId, handleRenameFolder, handleDeleteFolder, isDataLoaded } = useAppContext();
 
   const [isRenameOpen, setRenameOpen] = useState(false);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
@@ -90,7 +92,7 @@ export default function FolderPage() {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" aria-label="Folder options">
                 <MoreVertical className="size-5" />
               </Button>
             </DropdownMenuTrigger>
@@ -118,7 +120,9 @@ export default function FolderPage() {
         </div>
       </header>
       <main className="flex-1 p-4">
-        {notesInFolder.length > 0 ? (
+        {!isDataLoaded ? (
+          <NoteGridSkeleton />
+        ) : notesInFolder.length > 0 ? (
           <NoteList notes={notesInFolder} />
         ) : (
           <div className="flex h-[calc(100vh-12rem)] items-center justify-center rounded-lg border-2 border-dashed bg-muted/50">
@@ -130,16 +134,16 @@ export default function FolderPage() {
         )}
       </main>
 
-      <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent>
+      <CenterMorphModal open={isRenameOpen} onOpenChange={setRenameOpen}>
+        <CenterMorphModalContent ariaLabel="Rename folder">
           <form onSubmit={onRenameSubmit}>
-            <DialogHeader>
-              <DialogTitle>Rename Folder</DialogTitle>
-              <DialogDescription>
+            <div className="flex flex-col gap-2 p-6 pb-2">
+              <h2 className="text-lg font-semibold leading-none tracking-tight">Rename Folder</h2>
+              <p className="text-sm text-muted-foreground">
                 Enter a new name for the folder &quot;{folder.name}&quot;.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
+              </p>
+            </div>
+            <div className="px-6 py-4">
               <Label htmlFor="newFolderName" className="sr-only">Folder Name</Label>
               <Input
                 id="newFolderName"
@@ -148,13 +152,13 @@ export default function FolderPage() {
                 autoFocus
               />
             </div>
-            <DialogFooter>
+            <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={() => setRenameOpen(false)}>Cancel</Button>
               <Button type="submit">Rename</Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </CenterMorphModalContent>
+      </CenterMorphModal>
       
       <AlertDialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

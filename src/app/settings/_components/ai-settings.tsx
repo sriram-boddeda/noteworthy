@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/motion/button';
+import { Input } from '@/components/motion/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/motion/select';
+import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/components/motion/alert';
+import { Checkbox } from '@/components/motion/checkbox';
 import { useAiContext } from '@/context/ai-provider';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Loader2, Key, Trash2, Link } from 'lucide-react';
@@ -63,15 +64,6 @@ export function AiSettings() {
   const [isTesting, setIsTesting] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [persistChecked, setPersistChecked] = useState(false);
-
-  useEffect(() => {
-    if (config) {
-      setProvider(config.provider);
-      setApiKey(config.apiKey);
-      setModel(config.model);
-      setBaseUrl(config.baseUrl || '');
-    }
-  }, [config]);
 
   const handleProviderChange = (value: string) => {
     const p = value as AiProvider;
@@ -137,10 +129,13 @@ export function AiSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">Security Notice — Use at your own risk</AlertTitle>
-          <AlertDescription className="text-xs mt-1 space-y-1">
+        <Alert variant="destructive" className="border border-destructive/50">
+          <AlertIcon>
+            <AlertTriangle />
+          </AlertIcon>
+          <AlertContent>
+            <AlertTitle className="text-sm font-medium">Security Notice — Use at your own risk</AlertTitle>
+            <AlertDescription className="text-xs mt-1 space-y-1 text-destructive/80">
             <p>
               Your API keys are stored locally in your browser. By default, they persist only for the current session
               (cleared when you close the browser tab). If you enable persistence below, the key will be saved in
@@ -151,12 +146,13 @@ export function AiSettings() {
               to the third-party service (Gemini, OpenAI, or your local Ollama instance). We never see or store your key.
             </p>
           </AlertDescription>
+          </AlertContent>
         </Alert>
 
         <div className="space-y-2">
           <Label htmlFor="ai-provider">AI Provider</Label>
           <Select value={provider} onValueChange={handleProviderChange}>
-            <SelectTrigger id="ai-provider">
+            <SelectTrigger>
               <SelectValue placeholder="Select a provider" />
             </SelectTrigger>
             <SelectContent>
@@ -175,9 +171,9 @@ export function AiSettings() {
                 id="ai-api-key"
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={setApiKey}
                 placeholder={keyPlaceholder[provider]}
-                className="pr-20 font-mono text-sm"
+                classNames={{ input: 'pr-16 font-mono text-sm' }}
               />
               <Button
                 type="button"
@@ -205,7 +201,7 @@ export function AiSettings() {
           <Input
             id="ai-model"
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={setModel}
             placeholder={providerDefaults[provider].model}
           />
           <p className="text-xs text-muted-foreground">
@@ -216,30 +212,24 @@ export function AiSettings() {
         {!isKeyBased && (
           <div className="space-y-2">
             <Label htmlFor="ai-base-url">Base URL</Label>
-            <Input
-              id="ai-base-url"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder={providerDefaults[provider].baseUrl}
-            />
+          <Input
+            id="ai-base-url"
+            value={baseUrl}
+            onChange={setBaseUrl}
+            placeholder={providerDefaults[provider].baseUrl}
+          />
             <p className="text-xs text-muted-foreground">
               Your local Ollama instance URL. Make sure Ollama is running.
             </p>
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-sm">
-          <input
-            id="persist-config"
-            type="checkbox"
-            checked={persistChecked}
-            onChange={(e) => setPersistChecked(e.target.checked)}
-            className="rounded border-border"
-          />
-          <Label htmlFor="persist-config" className="text-muted-foreground cursor-pointer text-xs">
-            Keep AI config after closing the browser (stores in localStorage — less secure)
-          </Label>
-        </div>
+        <Checkbox
+          checked={persistChecked}
+          onCheckedChange={setPersistChecked}
+          className="items-start [&>span]:text-muted-foreground [&>span]:cursor-pointer [&>span]:text-xs"
+          label="Keep AI config after closing the browser (stores in localStorage — less secure)"
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={handleSave} disabled={!apiKey.trim() && provider !== 'ollama'}>

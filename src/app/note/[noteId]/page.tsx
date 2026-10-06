@@ -9,13 +9,14 @@ import { useAppContext } from '@/context/app-provider';
 import { useAiContext } from '@/context/ai-provider';
 import { MarkdownNote } from '@/components/markdown-note';
 import { RichTextNote } from '@/components/rich-text-note';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { AnimatedBadge } from '@/components/motion/animated-badge';
+import { Button } from '@/components/motion/button';
 import { BrainCircuit, Download, Loader2, Pencil, PlusCircle, Share, Sparkles, Tag, Trash2, Volume2, X, MoreVertical, Move, Copy, Clock } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/motion/popover';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/motion/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,22 +28,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { CenterMorphModal, CenterMorphModalContent } from "@/components/motion/center-morph-modal"
+import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from "@/components/motion/alert"
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { marked } from 'marked';
 import { toast } from 'sonner';
@@ -98,11 +85,22 @@ export default function NotePage() {
     const [isTagEditorOpen, setTagEditorOpen] = useState(false);
     const [isMoveDialogOpen, setMoveDialogOpen] = useState(false);
     const [isCopyDialogOpen, setCopyDialogOpen] = useState(false);
+    // beUI Select is fully controlled (no `name`/FormData support), so the
+    // Move/Copy dialogs track their folder choice in state, seeded on open.
+    const [moveFolderId, setMoveFolderId] = useState<string>('none');
+    const [copyFolderId, setCopyFolderId] = useState<string>('none');
     const [isHistorySheetOpen, setHistorySheetOpen] = useState(false);
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
-    const [summaryState, doSummarize] = useAiAction<string>(summarize);
-    const [ttsState, doTTS] = useAiAction<string>(textToSpeech);
-    const [tagSuggestState, doSuggestTags] = useAiAction<string[]>(suggestTags);
+    const [summaryState, doSummarize] = useAiAction(summarize);
+    const [ttsState, doTTS] = useAiAction(textToSpeech);
+    // Derived from useAiAction state; dismissal is a normal event-handler
+    // update, so nothing here needs a setState-in-effect.
+    const {
+        data: ttsAudioUrl,
+        timestamp: ttsTimestamp,
+    } = ttsState;
+    const [ttsDismissedAt, setTtsDismissedAt] = useState(0);
+    const showTtsAudio = ttsAudioUrl !== null && ttsTimestamp !== null && ttsTimestamp > ttsDismissedAt;
+    const [tagSuggestState, doSuggestTags] = useAiAction(suggestTags);
     const [isTagsPending, setTagsPending] = useState(false);
     const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
 
@@ -113,12 +111,6 @@ export default function NotePage() {
             router.push('/');
         }
     }, [isDataLoaded, activeNote, router]);
-
-    useEffect(() => {
-        if (ttsState.data) {
-            setAudioUrl(ttsState.data);
-        }
-    }, [ttsState]);
 
     useEffect(() => {
         if (summaryState.data && activeNote) {
@@ -173,10 +165,26 @@ export default function NotePage() {
         if (!activeNote) return;
         handleUpdateTags(activeNote.id, newTags);
     }, [activeNote, handleUpdateTags]);
-    
-    const onTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+
+    // Draft the comma-joined tag list while the editor is open; commit on
+    // close/Enter/blur so every keystroke doesn't rewrite the note's tags
+    // (and churn its lastModified timestamp). Seeding the draft when the
+    // editor OPENS is a user event, not a render-sync, so no effect is
+    // involved.
+    const [tagsDraft, setTagsDraft] = useState('');
+
+    const commitTags = useCallback(() => {
         if (!activeNote) return;
-        handleTitleChange(activeNote.id, e.target.value);
+        const tags = tagsDraft.split(',').map(t => t.trim()).filter(Boolean);
+        if (tags.join(', ') !== activeNote.tags.join(', ')) {
+            onUpdateTags(tags);
+        }
+    }, [activeNote, tagsDraft, onUpdateTags]);
+    
+    // beUI Input's onChange reports the next string value directly.
+    const onTitleChange = useCallback((title: string) => {
+        if (!activeNote) return;
+        handleTitleChange(activeNote.id, title);
     }, [activeNote, handleTitleChange]);
 
     const onDelete = useCallback(() => {
@@ -195,23 +203,19 @@ export default function NotePage() {
     const onMoveNote = useCallback((e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!activeNote) return;
-        const formData = new FormData(e.currentTarget);
-        const folderId = formData.get('folderId') as string;
-        handleMoveNote(activeNote.id, folderId === 'none' ? null : folderId);
+        handleMoveNote(activeNote.id, moveFolderId === 'none' ? null : moveFolderId);
         setMoveDialogOpen(false);
-    }, [activeNote, handleMoveNote]);
+    }, [activeNote, handleMoveNote, moveFolderId]);
     
     const onCopyNote = useCallback((e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!activeNote) return;
-        const formData = new FormData(e.currentTarget);
-        const folderId = formData.get('folderId') as string;
-        const newNote = handleCopyNote(activeNote.id, folderId === 'none' ? null : folderId);
+        const newNote = handleCopyNote(activeNote.id, copyFolderId === 'none' ? null : copyFolderId);
         setCopyDialogOpen(false);
         if (newNote) {
             router.push(`/note/${newNote.id}`);
         }
-    }, [activeNote, handleCopyNote, router]);
+    }, [activeNote, handleCopyNote, copyFolderId, router]);
 
 
     const handleExport = useCallback(async (format: 'html' | 'pdf' | 'docx') => {
@@ -375,7 +379,11 @@ export default function NotePage() {
                             value={activeNote.title} 
                             onChange={onTitleChange}
                             placeholder="Untitled Note"
-                            className="h-auto w-full truncate border-none bg-transparent p-0 font-headline text-2xl font-bold focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-3xl"
+                            className="w-full"
+                            classNames={{
+                                field: 'h-auto rounded-none border-transparent ring-0',
+                                input: 'p-0 text-2xl lg:text-3xl font-headline font-bold placeholder:text-muted-foreground/40',
+                            }}
                         />
                     </div>
                     <div className="text-right">
@@ -388,14 +396,12 @@ export default function NotePage() {
                     {/* Left side: Tags */}
                     <div className="flex flex-wrap items-center gap-2">
                         {activeNote.tags.map(tag => (
-                            <Badge key={tag} variant="secondary" className="cursor-default">
-                                <Tag className="size-3 mr-1.5" />
+                            <AnimatedBadge key={tag} status="neutral" size="sm" icon={<Tag className="size-3" />} className="cursor-default">
                                 {tag}
-                            </Badge>
-                        ))}
-                        <Popover open={isTagEditorOpen} onOpenChange={setTagEditorOpen}>
-                            <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" className="size-7 rounded-full">
+                            </AnimatedBadge>
+                        ))}                        <Popover open={isTagEditorOpen} onOpenChange={(open) => { if (open) setTagsDraft(activeNote.tags.join(', ')); if (!open) commitTags(); setTagEditorOpen(open); }}>
+                            <PopoverTrigger>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" aria-label="Edit tags">
                                     <Pencil className="size-3.5" />
                                 </Button>
                             </PopoverTrigger>
@@ -404,10 +410,18 @@ export default function NotePage() {
                                     <div className="space-y-2">
                                         <Label htmlFor="tags-input">Edit Tags</Label>
                                         <p className="text-sm text-muted-foreground">Separate tags with a comma.</p>
-                                        <Input 
+                                        <Input
                                             id="tags-input"
-                                            defaultValue={activeNote.tags.join(', ')}
-                                            onChange={(e) => onUpdateTags(e.target.value.split(','))}
+                                            value={tagsDraft}
+                                            onChange={setTagsDraft}
+                                            onBlur={commitTags}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    commitTags();
+                                                    setTagEditorOpen(false);
+                                                }
+                                            }}
                                         />
                                     </div>
                                     {isAiEnabled && (
@@ -451,7 +465,7 @@ export default function NotePage() {
                             </>
                         )}
                         <Button
-                          variant="default"
+                          variant="primary"
                           size="sm"
                           onClick={() => {
                             if (navigator.share) {
@@ -461,8 +475,10 @@ export default function NotePage() {
                                 url: window.location.href,
                               }).catch(() => {});
                             } else {
-                              navigator.clipboard.writeText(window.location.href);
-                              toast.success('Link copied to clipboard');
+                              navigator.clipboard
+                                .writeText(window.location.href)
+                                .then(() => toast.success('Link copied to clipboard'))
+                                .catch(() => toast.error('Could not copy the link'));
                             }
                           }}
                         >
@@ -486,16 +502,26 @@ export default function NotePage() {
                         </DropdownMenu>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="size-9">
+                                <Button variant="outline" size="icon" className="size-9" aria-label="More actions">
                                     <MoreVertical className="size-4" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setMoveDialogOpen(true)}>
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        setMoveFolderId(activeNote.folderId || 'none');
+                                        setMoveDialogOpen(true);
+                                    }}
+                                >
                                     <Move className="mr-2 size-4" />
                                     <span>Move Note</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setCopyDialogOpen(true)}>
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        setCopyFolderId(activeNote.folderId || 'none');
+                                        setCopyDialogOpen(true);
+                                    }}
+                                >
                                     <Copy className="mr-2 size-4" />
                                     <span>Create Copy</span>
                                 </DropdownMenuItem>
@@ -533,9 +559,9 @@ export default function NotePage() {
                 </div>
 
 
-                 {audioUrl && (
+                 {showTtsAudio && (
                     <div className="w-full pt-2">
-                        <audio controls autoPlay src={audioUrl} className="w-full h-10" onEnded={() => setAudioUrl(null)}>
+                        <audio controls autoPlay src={ttsAudioUrl ?? undefined} className="w-full h-10" onEnded={() => setTtsDismissedAt(Date.now())}>
                             Your browser does not support the audio element.
                         </audio>
                     </div>
@@ -544,8 +570,11 @@ export default function NotePage() {
             
             <main className="flex-1 overflow-auto p-4">
                 {isAiEnabled && activeNote.summary && (
-                    <Alert className="relative mb-4 bg-primary/5 border-primary/20 [&>svg]:text-primary">
-                        <BrainCircuit className="h-4 w-4" />
+                    <Alert variant="info" className="relative mb-4 border border-primary/20">
+                        <AlertIcon>
+                            <BrainCircuit />
+                        </AlertIcon>
+                        <AlertContent>
                         <AlertTitle className="flex justify-between items-center text-foreground">
                             <span>AI Summary</span>
                             <button
@@ -559,6 +588,7 @@ export default function NotePage() {
                         <AlertDescription className="text-foreground/80">
                             {activeNote.summary}
                         </AlertDescription>
+                        </AlertContent>
                     </Alert>
                 )}
                 {ActiveNoteComponent ? (
@@ -576,20 +606,26 @@ export default function NotePage() {
                 )}
             </main>
 
-            <Dialog open={isMoveDialogOpen} onOpenChange={setMoveDialogOpen}>
-                <DialogContent>
+            <CenterMorphModal open={isMoveDialogOpen} onOpenChange={setMoveDialogOpen}>
+                <CenterMorphModalContent ariaLabel="Move note" className="sm:max-w-lg">
                     <form onSubmit={onMoveNote}>
-                        <DialogHeader>
-                            <DialogTitle>Move Note</DialogTitle>
-                            <DialogDescription>Select a new folder for &quot;{activeNote.title}&quot;.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Label htmlFor="folderId">Destination Folder</Label>
-                            <Select name="folderId" defaultValue={activeNote.folderId || 'none'}>
+                        <div className="flex flex-col gap-2 p-6 pb-2">
+                            <h2 className="text-lg font-semibold leading-none tracking-tight">Move Note</h2>
+                            <p className="text-sm text-muted-foreground">Select a new folder for &quot;{activeNote.title}&quot;.</p>
+                        </div>
+                        <div className="px-6 py-4">
+                            <Label>Destination Folder</Label>
+                            {/* Radix Select stays here: its portalled, collision-aware
+                                panel survives the modal's clip-path; beUI's in-panel
+                                dropdown would clip. */}
+                            <Select value={moveFolderId} onValueChange={setMoveFolderId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a folder" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                {/* z-[200]: the portal must stack above the beUI
+                                    modal's z-[100] backdrop or it renders hidden
+                                    behind the blur. */}
+                                <SelectContent className="z-[200]">
                                     <SelectItem value="none">(No Folder)</SelectItem>
                                     {folders.map(f => (
                                         <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
@@ -597,28 +633,28 @@ export default function NotePage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <DialogFooter>
+                        <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
                             <Button type="button" variant="ghost" onClick={() => setMoveDialogOpen(false)}>Cancel</Button>
                             <Button type="submit">Move Note</Button>
-                        </DialogFooter>
+                        </div>
                     </form>
-                </DialogContent>
-            </Dialog>
+                </CenterMorphModalContent>
+            </CenterMorphModal>
 
-            <Dialog open={isCopyDialogOpen} onOpenChange={setCopyDialogOpen}>
-                <DialogContent>
+            <CenterMorphModal open={isCopyDialogOpen} onOpenChange={setCopyDialogOpen}>
+                <CenterMorphModalContent ariaLabel="Create a copy" className="sm:max-w-lg">
                     <form onSubmit={onCopyNote}>
-                        <DialogHeader>
-                            <DialogTitle>Create a Copy</DialogTitle>
-                            <DialogDescription>Select a destination folder for the new copy.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Label htmlFor="folderId">Destination Folder</Label>
-                            <Select name="folderId" defaultValue={activeNote.folderId || 'none'}>
+                        <div className="flex flex-col gap-2 p-6 pb-2">
+                            <h2 className="text-lg font-semibold leading-none tracking-tight">Create a Copy</h2>
+                            <p className="text-sm text-muted-foreground">Select a destination folder for the new copy.</p>
+                        </div>
+                        <div className="px-6 py-4">
+                            <Label>Destination Folder</Label>
+                            <Select value={copyFolderId} onValueChange={setCopyFolderId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a folder" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-[200]">
                                     <SelectItem value="none">(No Folder)</SelectItem>
                                     {folders.map(f => (
                                         <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
@@ -626,13 +662,13 @@ export default function NotePage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <DialogFooter>
-                             <Button type="button" variant="ghost" onClick={() => setCopyDialogOpen(false)}>Cancel</Button>
+                        <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
+                            <Button type="button" variant="ghost" onClick={() => setCopyDialogOpen(false)}>Cancel</Button>
                             <Button type="submit">Create Copy</Button>
-                        </DialogFooter>
+                        </div>
                     </form>
-                </DialogContent>
-            </Dialog>
+                </CenterMorphModalContent>
+            </CenterMorphModal>
 
              <NoteHistorySheet
                 note={activeNote}

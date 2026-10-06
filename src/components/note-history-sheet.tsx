@@ -2,15 +2,9 @@
 'use client';
 
 import React from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Drawer } from '@/components/motion/drawer';
 import type { Note } from '@/lib/data';
-import { Button } from './ui/button';
+import { Button } from '@/components/motion/button';
 import { ScrollArea } from './ui/scroll-area';
 import { History, RotateCcw } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -29,18 +23,23 @@ export function NoteHistorySheet({ note, isOpen, onOpenChange, onRestore }: Note
     .sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <History className="size-5" />
-            Version History
-          </SheetTitle>
-          <SheetDescription>
-            Review and restore previous versions of &quot;{note.title}&quot;.
-          </SheetDescription>
-        </SheetHeader>
-        <ScrollArea className="h-[calc(100%-8rem)] my-4 pr-4">
+    <Drawer
+      open={isOpen}
+      onOpenChange={onOpenChange}
+      side="right"
+      ariaLabel="Version history"
+      className="p-6 gap-4 sm:w-[28rem]"
+    >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <History className="size-5" />
+          Version History
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Review and restore previous versions of &quot;{note.title}&quot;.
+        </p>
+      </div>
+      <ScrollArea className="h-[calc(100%-8rem)] my-4 pr-4">
           <div className="space-y-4">
             {allVersions.length > 1 ? (
               allVersions.map((version, index) => (
@@ -71,7 +70,6 @@ export function NoteHistorySheet({ note, isOpen, onOpenChange, onRestore }: Note
             )}
           </div>
         </ScrollArea>
-      </SheetContent>
-    </Sheet>
+    </Drawer>
   );
 }

@@ -31,8 +31,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
-import { Button } from '@/components/ui/button';
+import { AnimatedBadge } from "@/components/motion/animated-badge"
+import { Button } from '@/components/motion/button';
 import { NoteworthyIcon } from '@/components/icons';
 import { FileText, Plus, Folder, PlusCircle, FolderPlus, Home, Clock, Search, Trash2, History, BookOpen, Settings, Pencil, Copy, Move } from 'lucide-react';
 import {
@@ -41,6 +41,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -55,9 +56,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
-import { Input } from './ui/input';
+import { CenterMorphModal, CenterMorphModalContent } from '@/components/motion/center-morph-modal';
+import { Input } from '@/components/motion/input';
 import { Label } from './ui/label';
+// Radix Select stays for the New-Note dialog: its portalled, collision-aware
+// panel survives the modal's clip-path; beUI's in-panel dropdown would clip.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { noteTypeOptions, type Note, type Folder as FolderType } from '@/lib/data';
 import { Draggable, Droppable, ItemPreview, type DraggableData, type DragKind } from '@/components/dnd';
@@ -121,13 +124,13 @@ const parseSearchQuery = (query: string) => {
 /**
  * Discriminated payload identifying which row's context menu is open.
  *
- * Notes are keyed by their FULL ROW id (`rowKey`) — the per-source-prefixed
- * dragId string (`recent-note-{id}`, `root-note-{id}`, or
- * `folder-{fid}-note-{nid}`) — rather than just `note.id`. The same note
- * can render in multiple sidebar sections concurrently (recents AND root
- * AND/OR inside an expanded folder), and the previous `id`-only scheme
- * caused every duplicate row to open its DropdownMenu simultaneously,
- * producing stacked popovers where only one captured clicks correctly.
+ * Notes are keyed by their FULL ROW id (`rowKey`, see the `noteRowKey`
+ * helper below for canonical per-source-prefixed strings) rather than
+ * just `note.id`. The same note can render in multiple sidebar sections
+ * concurrently (recents AND root AND/OR inside an expanded folder), and
+ * the previous `id`-only scheme caused every duplicate row to open its
+ * DropdownMenu simultaneously, producing stacked popovers where only one
+ * captured clicks correctly.
  *
  * Folders and trash are keyed by `id` / discriminator alone, because each
  * is rendered at most once in the sidebar (one AccordionItem per folder,
@@ -138,6 +141,37 @@ type OpenMenu =
   | { kind: 'folder'; id: string }
   | { kind: 'trash' }
   | null;
+
+/**
+ * Per-row identity helpers for note rows. Each factory returns a
+ * `rowKey` that distinguishes the same note rendered in different
+ * sidebar sections.
+ *
+ * INVARIANT — read this before adding a NEW section that lists notes
+ * UNIQUE per-source prefix. NEVER key `openMenu` (or any future per-row
+ * UI state — inline editors, row-level toggles, etc.) by `note.id`
+ * alone. The same note can render in multiple sections simultaneously
+ * (recents AND root AND/OR inside an expanded folder), and an `id`-only
+ * key causes every duplicate row to open / activate its row-level UI
+ * simultaneously.
+ *
+ * Once defined, the same `rowKey` value MUST be reused for the row's
+ * `dragId`, its `menuOpen` discriminator check, and its `onOpenMenu` /
+ * `onOpenChange` callbacks. The AppSidebar render code already extracts
+ * `const rowKey = noteRowKey.X(...)` once per row to enforce this —
+ * copy that shape.
+ */
+// Each return is `as const` so the inferred type is a narrow template-
+// literal (`` `recent-note-${string}` ``, etc.) instead of a generic
+// `string`. The per-section prefix is then visible in IDE hover /
+// intellisense, and a future discriminated-callback signature can
+// constrain rowKey by section without an extra cast.
+const noteRowKey = {
+  recent: (noteId: string) => `recent-note-${noteId}` as const,
+  root: (noteId: string) => `root-note-${noteId}` as const,
+  folder: (folderId: string, noteId: string) =>
+    `folder-${folderId}-note-${noteId}` as const,
+};
 
 interface SidebarTrashRowProps {
   menuOpen: boolean;
@@ -179,8 +213,15 @@ function SidebarTrashRow({
           onOpenMenu();
         }}
         className={cn(
-          'font-semibold select-none',
-          isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+          'font-semibold select-none transition-colors',
+          // While the row's menu is open, treat the row as fully
+          // 'selected' too — same fill + foreground + weight as the
+          // active-route treatment — so right-clicked rows read as the
+          // unambiguous source of the menu regardless of route state.
+          // Ring is additive; a single `bg-` rule avoids the
+          // order-dependent CSS conflict the previous split had.
+          (isActive || menuOpen) && 'bg-sidebar-accent text-sidebar-accent-foreground',
+          menuOpen && 'ring-2 ring-sidebar-ring/60',
         )}
       >
         <Trash2 />
@@ -202,7 +243,22 @@ function SidebarTrashRow({
           tabIndex={-1}
           aria-label="Trash actions"
         />
-        <DropdownMenuContent side="right" align="start" className="w-48">
+        <DropdownMenuContent
+          side="right"
+          align="start"
+          sideOffset={0}
+          // `rounded-l-none` keeps the dropdown's left edge sharp so it
+          // sits flush against the source row, forming a continuous visual
+          // chain rather than two close-but-separate shapes. The 2px left
+          // accent (`border-l-sidebar-ring/60`) matches the row's ring
+          // color, completing the accent line.
+          className="w-48 rounded-r-md rounded-l-none border-l-2 border-l-sidebar-ring/60"
+        >
+          <DropdownMenuLabel className="px-2 pt-2 pb-1 flex items-center gap-1.5 min-w-0 text-xs font-semibold text-muted-foreground">
+            <Trash2 className="size-3 shrink-0" />
+            <span>Trash</span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={onRequestEmptyTrash}
             disabled={trashedCount === 0}
@@ -257,6 +313,18 @@ function SidebarNoteRow({
   const icon =
     noteTypeOptions.find((o) => o.value === note.type)?.icon ??
     <FileText className="size-4" />;
+  // Clone the row's type-specific icon at size 3 for the dropdown header
+  // so the menu label visually keys to the same icon the user right-clicked
+  // (matches the Trash `Trash2` and Folder `Folder` icon header pattern).
+  // The double-cast (`as unknown as`) is defensive against `noteTypeOptions`
+  // `.icon` being typed as a wider `ReactNode` union — TS can't otherwise
+  // narrow from `ReactNode` directly.
+  const menuLabelIcon = React.isValidElement(icon)
+    ? React.cloneElement(
+        icon as unknown as React.ReactElement<{ className?: string }>,
+        { className: 'size-3 shrink-0' },
+      )
+    : icon;
   return (
     <SidebarMenuItem>
       <Draggable
@@ -277,8 +345,14 @@ function SidebarNoteRow({
           }}
           className={cn(
             extraClassName,
-            'select-none',
-            isActive && 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold',
+            'select-none transition-colors',
+            // Mirror of the trash + folder anchor pattern: when the
+            // row's menu is open, mirror the active-route style so the
+            // source row reads as fully selected. Single `bg-` rule
+            // keeps the rendered stylesheet unambiguous; ring is
+            // additive for the open-menu signal.
+            (isActive || menuOpen) && 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold',
+            menuOpen && 'ring-2 ring-sidebar-ring/60',
           )}
         >
           {icon}
@@ -290,7 +364,21 @@ function SidebarNoteRow({
             tabIndex={-1}
             aria-label={`Actions for ${note.title}`}
           />
-          <DropdownMenuContent side="right" align="start" className="w-48">
+          <DropdownMenuContent
+            side="right"
+            align="start"
+            sideOffset={0}
+            // `rounded-l-none` keeps the dropdown's left edge sharp so it
+            // sits flush against the source row, forming a continuous visual
+            // chain. The 2px left accent (`border-l-sidebar-ring/60`)
+            // matches the row's ring color, completing the accent line.
+            className="w-48 rounded-r-md rounded-l-none border-l-2 border-l-sidebar-ring/60"
+          >
+            <DropdownMenuLabel className="px-2 pt-2 pb-1 flex items-center gap-1.5 min-w-0 text-xs font-semibold text-muted-foreground">
+              {menuLabelIcon}
+              <span className="truncate max-w-[14rem]">{note.title}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={() => {
                 // `note.folderId` is `string | null | undefined` (the `?` in
@@ -427,8 +515,14 @@ function SidebarFolderRow({
               onOpenMenu();
             }}
             className={cn(
-              'w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90 select-none',
-              isActive && 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground',
+              'w-full justify-start rounded-md px-2 py-2 text-sm font-medium hover:bg-sidebar-accent [&[data-state=open]>svg]:rotate-90 select-none transition-colors',
+              // Mirror of the note + trash row anchor pattern: when the
+              // folder row's menu is open, mirror the active-route style
+              // so the source row reads as fully selected. Single `bg-`
+              // rule keeps the rendered stylesheet unambiguous; the
+              // base `font-medium` upgrades to `font-semibold` here.
+              (isActive || menuOpen) && 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground',
+              menuOpen && 'ring-2 ring-sidebar-ring/60',
             )}
           >
             <div className="flex flex-1 items-center gap-2">
@@ -442,7 +536,21 @@ function SidebarFolderRow({
               tabIndex={-1}
               aria-label={`Actions for folder ${folder.name}`}
             />
-            <DropdownMenuContent side="right" align="start" className="w-48">
+            <DropdownMenuContent
+              side="right"
+              align="start"
+              sideOffset={0}
+              // `rounded-l-none` keeps the dropdown's left edge sharp so it
+              // sits flush against the source folder row, forming a
+              // continuous visual chain. The 2px left accent
+              // (`border-l-sidebar-ring/60`) matches the row's ring color.
+              className="w-48 rounded-r-md rounded-l-none border-l-2 border-l-sidebar-ring/60"
+            >
+              <DropdownMenuLabel className="px-2 pt-2 pb-1 flex items-center gap-1.5 min-w-0 text-xs font-semibold text-muted-foreground">
+                <Folder className="size-3 shrink-0" />
+                <span className="truncate max-w-[14rem]">{folder.name}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => {
                   onOpenChange(false);
@@ -473,10 +581,10 @@ function SidebarFolderRow({
           <AccordionContent className="pt-1">
             <SidebarMenu>
               {folder.notes.map((note) => {
-                // Per-row identity keyed by the same dragId we attach to the
-                // Draggable, so duplicate listings (recents AND inside-folder)
-                // don't open their DropdownMenu simultaneously.
-                const rowKey = `folder-${folder.id}-note-${note.id}`;
+                // Per-row identity from the canonical helper (see
+                // noteRowKey above). Same value feeds this row's
+                // `dragId`, `menuOpen`, and open/openChange callbacks.
+                const rowKey = noteRowKey.folder(folder.id, note.id);
                 return (
                   <SidebarNoteRow
                     key={note.id}
@@ -635,6 +743,12 @@ export function AppSidebar() {
     setActiveDragItem(null);
   };
 
+  // Dropping outside every droppable fires no onDragEnd, so a drag that ends
+  // over the page or is cancelled (Esc) left the source row dimmed forever.
+  const onDragCancel = () => {
+    setActiveDragItem(null);
+  };
+
   const handleConfirmFolderDelete = () => {
     if (!folderToDelete) return;
     handleDeleteFolder(folderToDelete.id, true);
@@ -709,7 +823,7 @@ export function AppSidebar() {
 
   return (
     <>
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
         <Sidebar variant="floating" side="left" collapsible="offcanvas">
             <SidebarHeader>
                 <Link href="/" className="flex h-12 items-center gap-2 p-2">
@@ -740,13 +854,13 @@ export function AppSidebar() {
                     </DropdownMenu>
                 </div>
 
-                <div className="relative mb-2 px-2">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <div className="mb-2 px-2">
                     <Input
                         placeholder="Search notes..."
-                        className="pl-8 h-9"
+                        leftIcon={<Search className="size-4" />}
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={setSearchQuery}
+                        classNames={{ field: 'h-10' }}
                     />
                 </div>
 
@@ -813,11 +927,11 @@ export function AppSidebar() {
                         <AccordionContent className="pt-1">
                           <SidebarMenu>
                             {recentNotes.map((note) => {
-                              // Per-row identity keyed by the same dragId we
-                              // attach to the Draggable, so duplicate listings
-                              // (recents AND root AND/OR inside an expanded
-                              // folder) don't open their DropdownMenu simultaneously.
-                              const rowKey = `recent-note-${note.id}`;
+                              // Per-row identity from the canonical helper
+                              // (see noteRowKey above). Same value feeds
+                              // this row's `dragId`, `menuOpen`, and
+                              // open/openChange callbacks.
+                              const rowKey = noteRowKey.recent(note.id);
                               return (
                                 <SidebarNoteRow
                                   key={note.id}
@@ -842,10 +956,11 @@ export function AppSidebar() {
 
                 <SidebarMenu>
                     {filteredData.rootNotes.map((note) => {
-                      // Per-row identity key (same dragId we attach to the
-                      // Draggable) — see recents map comment for the
-                      // duplicate-render rationale.
-                      const rowKey = `root-note-${note.id}`;
+                      // Per-row identity from the canonical helper
+                      // (see noteRowKey above). Same value feeds this
+                      // row's `dragId`, `menuOpen`, and open/openChange
+                      // callbacks.
+                      const rowKey = noteRowKey.root(note.id);
                       return (
                         <SidebarNoteRow
                           key={note.id}
@@ -886,7 +1001,14 @@ export function AppSidebar() {
                     <div className="flex flex-wrap gap-1.5">
                         {uniqueTags.map(tag => (
                             <Link href={`/tag/${tag}`} key={tag}>
-                              <Badge variant={pathname === `/tag/${tag}` ? "default" : "outline"} className="cursor-pointer hover:bg-sidebar-accent">{tag}</Badge>
+                              <AnimatedBadge
+                                status={pathname === `/tag/${tag}` ? "info" : "neutral"}
+                                showIcon={false}
+                                size="sm"
+                                className="cursor-pointer hover:bg-sidebar-accent"
+                              >
+                                {tag}
+                              </AnimatedBadge>
                             </Link>
                         ))}
                     </div>
@@ -919,32 +1041,32 @@ export function AppSidebar() {
         </DragOverlay>
       </DndContext>
 
-      <Dialog open={isNewFolderOpen} onOpenChange={setNewFolderOpen}>
-        <DialogContent>
+      <CenterMorphModal open={isNewFolderOpen} onOpenChange={setNewFolderOpen}>
+        <CenterMorphModalContent ariaLabel="Create new folder">
             <form onSubmit={handleCreateFolderSubmit}>
-                <DialogHeader>
-                    <DialogTitle>Create New Folder</DialogTitle>
-                    <DialogDescription>Enter a name for your new folder.</DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
+                <div className="flex flex-col gap-2 p-6 pb-2">
+                    <h2 className="text-lg font-semibold leading-none tracking-tight">Create New Folder</h2>
+                    <p className="text-sm text-muted-foreground">Enter a name for your new folder.</p>
+                </div>
+                <div className="px-6 py-4">
                     <Label htmlFor="folderName">Folder Name</Label>
                     <Input id="folderName" name="folderName" autoFocus />
                 </div>
-                <DialogFooter>
+                <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
                     <Button type="submit">Create Folder</Button>
-                </DialogFooter>
+                </div>
             </form>
-        </DialogContent>
-      </Dialog>
+        </CenterMorphModalContent>
+      </CenterMorphModal>
 
-      <Dialog open={isNewNoteOpen} onOpenChange={setNewNoteOpen}>
-        <DialogContent>
+      <CenterMorphModal open={isNewNoteOpen} onOpenChange={setNewNoteOpen}>
+        <CenterMorphModalContent ariaLabel="Create new note" className="sm:max-w-lg">
             <form onSubmit={handleCreateNoteSubmit}>
-                <DialogHeader>
-                    <DialogTitle>Create New Note</DialogTitle>
-                    <DialogDescription>Fill in the details for your new note.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="flex flex-col gap-2 p-6 pb-2">
+                    <h2 className="text-lg font-semibold leading-none tracking-tight">Create New Note</h2>
+                    <p className="text-sm text-muted-foreground">Fill in the details for your new note.</p>
+                </div>
+                <div className="grid gap-4 px-6 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="title">Note Title</Label>
                         <Input id="title" name="title" autoFocus />
@@ -955,7 +1077,9 @@ export function AppSidebar() {
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a note type" />
                             </SelectTrigger>
-                            <SelectContent>
+                            {/* z-[200]: portal must stack above the beUI modal's
+                                z-[100] backdrop or it renders hidden behind the blur. */}
+                            <SelectContent className="z-[200]">
                                 {noteTypeOptions.map(opt => (
                                     <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                 ))}
@@ -968,7 +1092,7 @@ export function AppSidebar() {
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a folder" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="z-[200]">
                                 <SelectItem value="none">(No Folder)</SelectItem>
                                 {folders.map(f => (
                                     <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
@@ -977,27 +1101,27 @@ export function AppSidebar() {
                         </Select>
                     </div>
                 </div>
-                <DialogFooter>
+                <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
                     <Button type="submit">Create Note</Button>
-                </DialogFooter>
+                </div>
             </form>
-        </DialogContent>
-      </Dialog>
+        </CenterMorphModalContent>
+      </CenterMorphModal>
 
       {/* Folder rename dialog — triggered from right-click menu on a folder. */}
-      <Dialog
+      <CenterMorphModal
         open={folderToRename !== null}
         onOpenChange={(open) => { if (!open) setFolderToRename(null); }}
       >
-        <DialogContent>
+        <CenterMorphModalContent ariaLabel="Rename folder">
           <form onSubmit={handleConfirmFolderRename}>
-            <DialogHeader>
-              <DialogTitle>Rename Folder</DialogTitle>
-              <DialogDescription>
+            <div className="flex flex-col gap-2 p-6 pb-2">
+              <h2 className="text-lg font-semibold leading-none tracking-tight">Rename Folder</h2>
+              <p className="text-sm text-muted-foreground">
                 Enter a new name for the folder &quot;{folderToRename?.name}&quot;.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
+              </p>
+            </div>
+            <div className="px-6 py-4">
               <Label htmlFor="newFolderName" className="sr-only">Folder Name</Label>
               <Input
                 id="newFolderName"
@@ -1006,13 +1130,13 @@ export function AppSidebar() {
                 autoFocus
               />
             </div>
-            <DialogFooter>
+            <div className="flex flex-col-reverse gap-2 p-6 pt-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" onClick={() => setFolderToRename(null)}>Cancel</Button>
               <Button type="submit">Rename</Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </CenterMorphModalContent>
+      </CenterMorphModal>
 
       {/* Folder delete confirmation — triggered from right-click menu on a folder. */}
       <AlertDialog

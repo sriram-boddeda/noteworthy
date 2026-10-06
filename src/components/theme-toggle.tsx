@@ -1,19 +1,24 @@
 'use client'
 
-import React, {useState, useEffect} from 'react'
+import {useSyncExternalStore} from 'react'
 import {Moon, Sun, Monitor} from 'lucide-react'
 import {useTheme} from 'next-themes'
 import {cn} from '@/lib/utils'
-import {motion} from 'framer-motion'
-import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
+import {motion} from 'motion/react'
+import {Tooltip} from '@/components/motion/tooltip'
+
+// The theme of the server render is unknowable, so the toggle is gated on the
+// first client render. useSyncExternalStore gives that hydration flag without
+// a setState-in-effect cascade (and without rendering anything on the server).
+const subscribeNever = () => () => {}
 
 export function ThemeToggle() {
   const {theme, setTheme} = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  )
 
   if (!mounted) return null
 
@@ -40,70 +45,53 @@ export function ThemeToggle() {
         className="absolute h-8 w-8 bg-background shadow-md"
       />
 
-      <TooltipProvider delayDuration={0}>
-        {/* Light */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setTheme('light')}
-              className="relative z-10 p-2 rounded-full"
-              aria-label="Set light theme"
-            >
-              <Sun
-                className={cn(
-                  'h-4 w-4 transition-colors',
-                  theme === 'light' ? 'text-primary' : 'text-muted-foreground',
-                )}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={10}>
-            Light
-          </TooltipContent>
-        </Tooltip>
+      {/* Light */}
+      <Tooltip content="Light" side="bottom">
+        <button
+          onClick={() => setTheme('light')}
+          className="relative z-10 p-2 rounded-full"
+          aria-label="Set light theme"
+        >
+          <Sun
+            className={cn(
+              'h-4 w-4 transition-colors',
+              theme === 'light' ? 'text-primary' : 'text-muted-foreground',
+            )}
+          />
+        </button>
+      </Tooltip>
 
-        {/* Dark */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setTheme('dark')}
-              className="relative z-10 p-2 rounded-full"
-              aria-label="Set dark theme"
-            >
-              <Moon
-                className={cn(
-                  'h-4 w-4 transition-colors',
-                  theme === 'dark' ? 'text-primary' : 'text-muted-foreground',
-                )}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={10}>
-            Dark
-          </TooltipContent>
-        </Tooltip>
+      {/* Dark */}
+      <Tooltip content="Dark" side="bottom">
+        <button
+          onClick={() => setTheme('dark')}
+          className="relative z-10 p-2 rounded-full"
+          aria-label="Set dark theme"
+        >
+          <Moon
+            className={cn(
+              'h-4 w-4 transition-colors',
+              theme === 'dark' ? 'text-primary' : 'text-muted-foreground',
+            )}
+          />
+        </button>
+      </Tooltip>
 
-        {/* System */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={() => setTheme('system')}
-              className="relative z-10 p-2 rounded-full"
-              aria-label="Set system theme"
-            >
-              <Monitor
-                className={cn(
-                  'h-4 w-4 transition-colors',
-                  theme === 'system' ? 'text-primary' : 'text-muted-foreground',
-                )}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={10}>
-            System
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {/* System */}
+      <Tooltip content="System" side="bottom">
+        <button
+          onClick={() => setTheme('system')}
+          className="relative z-10 p-2 rounded-full"
+          aria-label="Set system theme"
+        >
+          <Monitor
+            className={cn(
+              'h-4 w-4 transition-colors',
+              theme === 'system' ? 'text-primary' : 'text-muted-foreground',
+            )}
+          />
+        </button>
+      </Tooltip>
     </div>
   )
 }

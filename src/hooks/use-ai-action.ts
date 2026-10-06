@@ -8,9 +8,9 @@ export interface AiActionState {
   timestamp: number | null;
 }
 
-export function useAiAction<T>(
-  action: (...args: any[]) => Promise<T>,
-): [AiActionState & { data: T | null }, (...args: any[]) => Promise<T | undefined>] {
+export function useAiAction<TArgs extends unknown[], T>(
+  action: (...args: TArgs) => Promise<T>,
+): [AiActionState & { data: T | null }, (...args: TArgs) => Promise<T | undefined>] {
   const [state, setState] = useState<AiActionState & { data: T | null }>({
     isPending: false,
     error: null,
@@ -19,7 +19,7 @@ export function useAiAction<T>(
   });
   const mountedRef = useRef(true);
 
-  const execute = useCallback(async (...args: any[]): Promise<T | undefined> => {
+  const execute = useCallback(async (...args: TArgs): Promise<T | undefined> => {
     setState(prev => ({ ...prev, isPending: true, error: null }));
     try {
       const result = await action(...args);
@@ -32,11 +32,11 @@ export function useAiAction<T>(
         });
       }
       return result;
-    } catch (e: any) {
+    } catch (e) {
       if (mountedRef.current) {
         setState({
           isPending: false,
-          error: e.message || 'An unexpected error occurred.',
+          error: e instanceof Error ? e.message : 'An unexpected error occurred.',
           timestamp: Date.now(),
           data: null,
         });

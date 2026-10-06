@@ -1,17 +1,23 @@
-
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import React from 'react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/motion/breadcrumb';
 
-interface BreadcrumbItem {
+interface Crumb {
   href: string;
   label: string;
 }
 
 interface BreadcrumbsProps {
-  items: BreadcrumbItem[];
+  items: Crumb[];
 }
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
@@ -20,21 +26,27 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
   }
 
   return (
-    <nav aria-label="breadcrumb">
-      <ol className="flex items-center space-x-2 text-sm text-muted-foreground">
-        {items.map((item, index) => (
-          <li key={item.href} className="flex items-center">
-            {index > 0 && <ChevronRight className="size-4 mr-2" />}
-            {index === items.length - 1 ? (
-              <span className="font-medium text-foreground">{item.label}</span>
-            ) : (
-              <Link href={item.href} className="hover:text-foreground transition-colors">
-                {item.label}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ol>
-    </nav>
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList maxItems={Infinity}>
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          return (
+            // Stable route key per beUI convention: entering/leaving crumbs animate.
+            <BreadcrumbItem key={item.href}>
+              {index > 0 && <BreadcrumbSeparator className="mr-1" />}
+              {isLast ? (
+                <BreadcrumbPage>{item.label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink
+                  render={(props) => <Link href={item.href} {...props} />}
+                >
+                  {item.label}
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
